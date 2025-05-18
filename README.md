@@ -1,6 +1,9 @@
 # Media Catalog Telegram Bot
 
 **Version:** 1.0.0.0
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
+<!-- You can add other badges here: license, build status (later), etc. -->
+
 **License:** GNU General Public License v3.0 (see `LICENSE` file)
 
 The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It offers integration with popular self-hosted applications like Plex, Radarr, and Sonarr, along with features for local PC control and custom script execution.
@@ -96,6 +99,32 @@ Key settings:
 ## Building a Standalone Executable (Windows Optional)
 
 Refer to `SETUP_INSTRUCTIONS.md` ("Optional: Creating a Standalone Executable") for using `build_tools/build_application.bat`.
+
+## ❤️ Support the Project
+
+If you find this Media Catalog Telegram Bot useful and appreciate the work, please consider showing your support! Every contribution helps in maintaining and improving the bot.
+
+### Sponsor with Cryptocurrency
+
+You can support the project by sending cryptocurrency to the following addresses. **Please double-check the address and ensure you are sending on the correct network before confirming any transaction.**
+
+*   **Bitcoin (BTC - SegWit):**
+    *(Please send only Bitcoin (BTC) to this address. Ensure your wallet supports sending to SegWit (bech32/bc1...) addresses.)*
+    ```
+    bc1q6gxjcw9krnm5zyx8xxxx93aq7q965ygxnpefy3
+    ```
+
+*   **Ethereum (ETH) & USDT (ERC-20 Token on Ethereum Network):**
+    *(This single address accepts both native Ethereum (ETH) and USDT tokens that are on the Ethereum ERC-20 network.)*
+    ```
+    0x419df8dc3d710af15998d1b307140952ef147095
+    ```
+
+### Other Ways to Support
+*   Consider **starring the project** on [GitHub](https://github.com/hryarih32/MediaCatalogBot)! ⭐
+*   Spread the word about the bot if you find it helpful.
+
+Thank you for your support!
 
 ## License
 
