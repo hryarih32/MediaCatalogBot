@@ -1,6 +1,6 @@
 # Media Catalog Telegram Bot
 
-**Version:** 1.0.0.0
+**Version:** 1.0.0
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
 <!-- You can add other badges here: license, build status (later), etc. -->
 
