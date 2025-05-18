@@ -13,7 +13,7 @@ VERSION_INFO_OUTPUT_FILE = "../build_version_details.txt"
 PRODUCT_NAME = "Media Catalog Telegram Bot"
 FILE_DESCRIPTION = "Telegram Bot for Media Catalog Management"
 INTERNAL_NAME = "MediaCatalogBot"
-ORIGINAL_FILENAME = "Media Catalog Telegram Bot.exe"
+ORIGINAL_FILENAME = "MediaCatalogBot.exe"
 
 VERSION_INFO_TEMPLATE = """# UTF-8
 VSVersionInfo(

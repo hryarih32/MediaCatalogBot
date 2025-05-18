@@ -1,6 +1,6 @@
 # Media Catalog Telegram Bot
 
-**Version:** (Refer to the `VERSION` file in the project root)
+**Version:** 1.0.0.0
 **License:** GNU General Public License v3.0 (see `LICENSE` file)
 
 The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It offers integration with popular self-hosted applications like Plex, Radarr, and Sonarr, along with features for local PC control and custom script execution.
@@ -100,3 +100,11 @@ Refer to `SETUP_INSTRUCTIONS.md` ("Optional: Creating a Standalone Executable") 
 ## License
 
 GNU General Public License v3.0. See `LICENSE`.
+
+## Contributing
+
+Contributions, bug reports, and feature requests are welcome! Please feel free to open an issue on the [project's GitHub repository](https://github.com/hryarih32/MediaCatalogBot/issues).
+
+## Disclaimer
+
+This software is provided "as is". Use responsibly. The author(s) are not responsible for any unintended consequences resulting from its use or misuse. Keep API keys secure.

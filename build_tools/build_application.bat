@@ -23,7 +23,7 @@ echo [+] Running PyInstaller...
 pushd "%PROJECT_ROOT%"
 
 pyinstaller --clean --onefile --noconsole ^
-    --name "Media Catalog Telegram Bot" ^
+    --name "MediaCatalogBot" ^
     --icon="resources/ico.ico" ^
     --add-data "config_templates/config.py.default:." ^
     --add-data "VERSION:." ^

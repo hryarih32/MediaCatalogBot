@@ -8,19 +8,25 @@
     *   Install from [python.org](https://www.python.org/downloads/release/python-3129/) or via package manager (e.g., `winget install -e --id Python.Python.3.12` on Windows).
     *   **Important (Windows):** Ensure "Add Python 3.12 to PATH" is checked during installation.
 
-*   **Git (Optional, for cloning):**
+*   **Git (Optional, but recommended for cloning the repository):**
     *   Install from [git-scm.com](https://git-scm.com/downloads) or via package manager (e.g., `winget install -e --id Git.Git`).
 
 ## 1. Get the Code
 
-*   **Option A (Git):**
+*   **Option A (Using Git):**
+    Open your terminal (Command Prompt, PowerShell, Bash, etc.) and run:
     ```bash
-    git clone <repository_url_of_the_bot> MediaCatalogBot
+    git clone https://github.com/hryarih32/MediaCatalogBot.git
     cd MediaCatalogBot
     ```
+
 *   **Option B (Download ZIP):**
-    1.  Download and extract the project ZIP.
-    2.  Open your terminal and `cd` into the extracted project folder.
+    1.  Download the project ZIP file from [https://github.com/hryarih32/MediaCatalogBot/archive/refs/heads/main.zip](https://github.com/hryarih32/MediaCatalogBot/archive/refs/heads/main.zip) (assuming 'main' is your default branch).
+    2.  Extract the ZIP file to a suitable folder on your computer.
+    3.  Open your terminal/command prompt and navigate into this project folder using the `cd` command:
+       ```bash
+       cd path/to/your/MediaCatalogBot-main # Or whatever the extracted folder is named
+       ```
 
 ## 2. Setup Python Virtual Environment & Install Dependencies
 
@@ -44,7 +50,7 @@
     ```bash
     pip install -r requirements/requirements.txt
     ```
-    *(Note the new path to `requirements.txt`)*
+    *(Note the path to `requirements.txt`)*
 
 ## 3. First Run & Configuration
 
