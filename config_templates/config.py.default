@@ -1,0 +1,52 @@
+
+TELEGRAM_BOT_TOKEN = ""
+CHAT_ID = ""
+
+PLEX_ENABLED = False
+PLEX_URL = "http://localhost:32400"
+PLEX_TOKEN = ""
+
+RADARR_ENABLED = False
+RADARR_API_URL = "http://localhost:7878"
+RADARR_API_KEY = ""
+
+SONARR_ENABLED = False
+SONARR_API_URL = "http://localhost:8989"
+SONARR_API_KEY = ""
+
+LOG_LEVEL = "INFO"
+PC_CONTROL_ENABLED = False
+ADD_MEDIA_MAX_SEARCH_RESULTS = 30
+ADD_MEDIA_ITEMS_PER_PAGE = 5
+
+PLEX_LAUNCHER_ENABLED = False
+PLEX_LAUNCHER_NAME = "Launch Plex"
+PLEX_LAUNCHER_PATH = r"C:\Program Files\Plex\Plex Media Server\Plex Media Server.exe"
+
+SONARR_LAUNCHER_ENABLED = False
+SONARR_LAUNCHER_NAME = "Launch Sonarr"
+SONARR_LAUNCHER_PATH = r"C:\ProgramData\Sonarr\bin\Sonarr.exe"
+
+RADARR_LAUNCHER_ENABLED = False
+RADARR_LAUNCHER_NAME = "Launch Radarr"
+RADARR_LAUNCHER_PATH = r"C:\ProgramData\Radarr\bin\Radarr.exe"
+
+PROWLARR_LAUNCHER_ENABLED = False
+PROWLARR_LAUNCHER_NAME = "Launch Prowlarr"
+PROWLARR_LAUNCHER_PATH = r"C:\ProgramData\Prowlarr\bin\Prowlarr.exe"
+
+TORRENT_LAUNCHER_ENABLED = False
+TORRENT_LAUNCHER_NAME = "Launch Torrent Client"
+TORRENT_LAUNCHER_PATH = r"C:\Program Files\qBittorrent\qbittorrent.exe"
+
+SCRIPT_1_ENABLED = False
+SCRIPT_1_NAME = "My Custom Script 1"
+SCRIPT_1_PATH = r"C:\path\to\your\script1.bat"
+
+SCRIPT_2_ENABLED = False
+SCRIPT_2_NAME = "Another Custom Script"
+SCRIPT_2_PATH = r"/path/to/your/script2.sh"
+
+SCRIPT_3_ENABLED = False
+SCRIPT_3_NAME = ""
+SCRIPT_3_PATH = r""
