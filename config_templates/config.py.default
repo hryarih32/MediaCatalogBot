@@ -50,3 +50,11 @@ SCRIPT_2_PATH = r"/path/to/your/script2.sh"
 SCRIPT_3_ENABLED = False
 SCRIPT_3_NAME = ""
 SCRIPT_3_PATH = r""
+
+# --- New ABDM Integration Settings ---
+ABDM_ENABLED = False
+ABDM_PORT = 15151
+
+ABDM_LAUNCHER_ENABLED = False
+ABDM_LAUNCHER_NAME = "Launch AB Downloader"
+ABDM_LAUNCHER_PATH = r"C:\Path\To\ABDownloadManager.exe"

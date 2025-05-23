@@ -8,8 +8,8 @@ from src.config.config_definitions import (
     CONFIG_KEYS_SCRIPT_1, CONFIG_KEYS_SCRIPT_2, CONFIG_KEYS_SCRIPT_3,
     CONFIG_KEYS_PC_CONTROL, CONFIG_KEYS_UI_BEHAVIOR,
     CONFIG_KEYS_PLEX_LAUNCHER, CONFIG_KEYS_SONARR_LAUNCHER, CONFIG_KEYS_RADARR_LAUNCHER,
-    CONFIG_KEYS_PROWLARR_LAUNCHER, CONFIG_KEYS_TORRENT_LAUNCHER,
-    ALL_USER_CONFIG_KEYS, CONFIG_FIELD_DEFINITIONS,
+    CONFIG_KEYS_PROWLARR_LAUNCHER, CONFIG_KEYS_TORRENT_LAUNCHER, CONFIG_KEYS_ABDM_LAUNCHER,
+    ALL_USER_CONFIG_KEYS, CONFIG_FIELD_DEFINITIONS, CONFIG_KEYS_ABDM,
     CONFIG_KEYS_LOGGING, LOG_LEVEL_OPTIONS,
     CallbackData as BotCallbackDataToWrite
 )
@@ -108,6 +108,8 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
             "keys": CONFIG_KEYS_RADARR[1:], "enable_key": "RADARR_ENABLED", "is_api": True},
         {"title": "Sonarr API",
             "keys": CONFIG_KEYS_SONARR[1:], "enable_key": "SONARR_ENABLED", "is_api": True},
+        {"title": "AB Download Manager",
+            "keys": CONFIG_KEYS_ABDM[1:], "enable_key": "ABDM_ENABLED", "is_api": True},
     ]
     for idx, frame_data in enumerate(top_frames_data):
         frame_lf = ttk.LabelFrame(
@@ -215,9 +217,10 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     current_main_row += 1
     launchers_main_lf.grid_columnconfigure(0, weight=0)
     launchers_main_lf.grid_columnconfigure(1, weight=1)
-    launchers_main_lf.grid_columnconfigure(2, weight=2)
+    launchers_main_lf.grid_columnconfigure(2, weight=1)
     launcher_configs = [{"title": "Plex Media Server", "keys": CONFIG_KEYS_PLEX_LAUNCHER}, {"title": "Sonarr", "keys": CONFIG_KEYS_SONARR_LAUNCHER}, {
-        "title": "Radarr", "keys": CONFIG_KEYS_RADARR_LAUNCHER}, {"title": "Prowlarr", "keys": CONFIG_KEYS_PROWLARR_LAUNCHER}, {"title": "Torrent Client", "keys": CONFIG_KEYS_TORRENT_LAUNCHER},]
+        "title": "Radarr", "keys": CONFIG_KEYS_RADARR_LAUNCHER}, {"title": "Prowlarr", "keys": CONFIG_KEYS_PROWLARR_LAUNCHER}, {"title": "Torrent Client", "keys": CONFIG_KEYS_TORRENT_LAUNCHER},
+        {"title": "AB Download Manager", "keys": CONFIG_KEYS_ABDM_LAUNCHER},]
     current_launcher_row_internal = 0
     for launcher_info in launcher_configs:
         enabled_key, name_key, path_key = launcher_info["keys"]
@@ -401,7 +404,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                         "Error", f"'{definition['label']}' must be a numerical ID.", parent=root)
                     has_errors = True
                     break
-                if key_widget in ["ADD_MEDIA_MAX_SEARCH_RESULTS", "ADD_MEDIA_ITEMS_PER_PAGE"]:
+                if key_widget in ["ADD_MEDIA_MAX_SEARCH_RESULTS", "ADD_MEDIA_ITEMS_PER_PAGE", "ABDM_PORT"]:
                     if value_str and not value_str.isdigit():
                         messagebox.showerror(
                             "Error", f"'{definition['label']}' must be a number.", parent=root)
@@ -457,6 +460,10 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                     f'SONARR_API_URL = "{config_data.get("SONARR_API_URL", "")}"\n')
                 f.write(
                     f'SONARR_API_KEY = "{config_data.get("SONARR_API_KEY", "")}"\n\n')
+                f.write(
+                    f'ABDM_ENABLED = {config_data.get("ABDM_ENABLED", False)}\n')
+                f.write(
+                    f'ABDM_PORT = {int(config_data.get("ABDM_PORT", 15151))}\n\n')
                 f.write("# --- General Settings (Logging, UI & PC Control) ---\n")
                 f.write(
                     f'LOG_LEVEL = "{config_data.get("LOG_LEVEL", "INFO")}"\n')
@@ -469,7 +476,8 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                     f'ADD_MEDIA_ITEMS_PER_PAGE = {config_data.get("ADD_MEDIA_ITEMS_PER_PAGE", 5)}\n\n')
                 f.write("# --- Application Launcher Configurations ---\n")
                 launcher_key_groups = [CONFIG_KEYS_PLEX_LAUNCHER, CONFIG_KEYS_SONARR_LAUNCHER,
-                                       CONFIG_KEYS_RADARR_LAUNCHER, CONFIG_KEYS_PROWLARR_LAUNCHER, CONFIG_KEYS_TORRENT_LAUNCHER]
+                                       CONFIG_KEYS_RADARR_LAUNCHER, CONFIG_KEYS_PROWLARR_LAUNCHER, CONFIG_KEYS_TORRENT_LAUNCHER,
+                                       CONFIG_KEYS_ABDM_LAUNCHER]
                 for launcher_key_group in launcher_key_groups:
                     enabled_k, name_k, path_k = launcher_key_group
                     f.write(
@@ -547,6 +555,8 @@ if __name__ == '__main__':
         CONFIG_KEYS_PC_CONTROL[0]: True,
         "ADD_MEDIA_MAX_SEARCH_RESULTS": "25", "ADD_MEDIA_ITEMS_PER_PAGE": "7",
         "PLEX_LAUNCHER_ENABLED": True, "PLEX_LAUNCHER_NAME": "Start Plex Server", "PLEX_LAUNCHER_PATH": "C:/Plex/Plex Media Server.exe",
+        "ABDM_ENABLED": True, "ABDM_PORT": "15152",
+        "ABDM_LAUNCHER_ENABLED": True, "ABDM_LAUNCHER_NAME": "Launch AB Test", "ABDM_LAUNCHER_PATH": "C:/path/to/ABTest.exe",
         "LOG_LEVEL": "DEBUG"
     }
     ui_result = run_config_ui(test_config_path, mock_initial_values)

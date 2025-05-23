@@ -1,8 +1,7 @@
 # Media Catalog Telegram Bot
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
-<!-- You can add other badges here: license, build status (later), etc. -->
 
 **License:** GNU General Public License v3.0 (see `LICENSE` file)
 
@@ -31,16 +30,20 @@ The Media Catalog Telegram Bot is a versatile tool designed to help you manage a
     *   Access a list of "Wanted Episodes" and trigger searches.
     *   Perform Sonarr library maintenance: disk rescans, metadata refresh, file renaming.
 
+*   **AB Download Manager Integration (New in 1.1.0):**
+    *   Add direct downloads to AB Download Manager instantly by providing a URL.
+    *   Configurable ABDM API port and optional launcher via GUI.
+
 *   **PC Control (Local Machine):**
     *   (Requires `pyautogui` and `pycaw` Python libraries)
     *   Control media playback, system volume, and mute.
     *   Initiate PC shutdown or restart commands (with confirmation).
 
 *   **Application Launchers & Custom Scripts:**
-    *   Configure buttons to launch applications or run custom scripts on the bot's host machine.
+    *   Configure buttons to launch applications (including newly added AB Download Manager) or run custom scripts on the bot's host machine.
 
 *   **User-Friendly Configuration:**
-    *   Graphical User Interface (GUI) for setup and modification of settings (stored in `data/config.py`).
+    *   Graphical User Interface (GUI) for setup and modification of settings (stored in `data/config.py`), now including AB Download Manager settings.
     *   A template is provided in `config_templates/config.py.default`.
 
 *   **Interactive Telegram Menus:**
@@ -51,6 +54,8 @@ The Media Catalog Telegram Bot is a versatile tool designed to help you manage a
 
 *   `MediaCatalog.py`: Main application script (in project root).
 *   `src/`: Contains all core Python modules (app logic, bot handlers, services).
+    *   `src/services/abdm/`: New service for AB Download Manager integration.
+    *   `src/handlers/abdm/`: New handlers for AB Download Manager commands.
 *   `data/`: For runtime data:
     *   `config.py`: **Your active configuration file (user-generated or copied from template).**
     *   `mediabot.log`: Bot activity and error logs.
@@ -87,7 +92,7 @@ The bot's behavior is controlled by `data/config.py`. A template is in `config_t
 
 Key settings:
 *   Telegram Bot Token and Chat ID.
-*   Enable/disable flags and API details for Plex, Radarr, Sonarr, PC Control.
+*   Enable/disable flags and API details for Plex, Radarr, Sonarr, **AB Download Manager**, PC Control.
 *   Paths/names for custom scripts and launchers.
 *   Logging level and UI preferences.
 

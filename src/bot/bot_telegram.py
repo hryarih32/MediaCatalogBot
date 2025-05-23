@@ -182,11 +182,13 @@ def setup_handlers(application: Application):
     root_menu_trigger_patterns = [
         CallbackData.CMD_HOME_BACK, CallbackData.CMD_SETTINGS,
         CallbackData.CMD_ADD_MOVIE_INIT, CallbackData.CMD_ADD_SHOW_INIT,
+        CallbackData.CMD_ADD_DOWNLOAD_INIT,
         CallbackData.CMD_LAUNCHERS_MENU,
         CallbackData.CMD_PC_CONTROL_ROOT,
         CallbackData.CMD_RADARR_CONTROLS, CallbackData.CMD_SONARR_CONTROLS, CallbackData.CMD_PLEX_CONTROLS,
         CallbackData.CMD_LAUNCH_PLEX, CallbackData.CMD_LAUNCH_SONARR, CallbackData.CMD_LAUNCH_RADARR,
-        CallbackData.CMD_LAUNCH_PROWLARR, CallbackData.CMD_LAUNCH_TORRENT,
+
+        CallbackData.CMD_LAUNCH_PROWLARR, CallbackData.CMD_LAUNCH_TORRENT, CallbackData.CMD_LAUNCH_ABDM,
         CallbackData.CMD_SCRIPT_1, CallbackData.CMD_SCRIPT_2, CallbackData.CMD_SCRIPT_3,
         CallbackData.RADARR_CANCEL, CallbackData.SONARR_CANCEL,
         CallbackData.CMD_PLEX_MENU_BACK

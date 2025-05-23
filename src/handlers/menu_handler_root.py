@@ -3,6 +3,7 @@ import os
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.handlers.abdm.menu_handler_abdm_download import handle_abdm_download_initiation
 from src.app import app_script_handler as script_handler
 from src.bot.bot_initialization import (
     show_or_edit_main_menu,
@@ -62,6 +63,7 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.chat_data.pop('pc_pending_power_action', None)
     context.chat_data.pop('pc_pending_power_time', None)
     context.user_data.pop('pending_plex_search', None)
+    context.user_data.pop('pending_download_url', None)
     plex_keys_to_clear = ['plex_search_current_show_rating_key', 'plex_search_current_show_title', 'plex_search_current_season_number', 'plex_search_current_season_title', 'plex_search_current_episode_page',
                           'plex_current_item_details_context', 'plex_refresh_target_rating_key', 'plex_refresh_target_type', 'plex_recently_added_current_library_key', 'plex_recently_added_all_items', 'plex_return_to_menu_id']
     for key in plex_keys_to_clear:
@@ -109,6 +111,20 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_or_edit_universal_status_message(context.bot, admin_chat_id_int, "⚠️ Error displaying add prompt.", parse_mode=None)
             await show_or_edit_main_menu(admin_chat_id_str, context, force_send_new=True)
         return
+    elif data == CallbackData.CMD_ADD_DOWNLOAD_INIT.value:
+        if not app_config_holder.is_abdm_enabled():
+            await send_or_edit_universal_status_message(context.bot, admin_chat_id_int, "ℹ️ AB Download Manager integration is disabled.", parse_mode=None)
+            await show_or_edit_main_menu(admin_chat_id_str, context, force_send_new=True)
+            return
+        context.user_data["pending_download_url"] = True
+        prompt_msg_id = await send_or_edit_universal_status_message(context.bot, admin_chat_id_int, "🔗 Enter the URL for the download:", parse_mode=None)
+        if prompt_msg_id:
+            context.user_data["search_prompt_message_id"] = prompt_msg_id
+        else:
+            await send_or_edit_universal_status_message(context.bot, admin_chat_id_int, "⚠️ Error displaying download prompt.", parse_mode=None)
+            await show_or_edit_main_menu(admin_chat_id_str, context, force_send_new=True)
+        return
+
     elif data == CallbackData.CMD_LAUNCHERS_MENU.value:
         await display_launchers_menu(update, context)
         return
@@ -167,6 +183,8 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         script_identifier_to_run = "PROWLARR"
     elif data == CallbackData.CMD_LAUNCH_TORRENT.value:
         script_identifier_to_run = "TORRENT"
+    elif data == CallbackData.CMD_LAUNCH_ABDM.value:
+        script_identifier_to_run = "ABDM"
 
     if script_identifier_to_run:
         display_name_raw = ""
@@ -183,6 +201,9 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 script_identifier_to_run) or f"Launch {script_identifier_to_run.capitalize()}"
         else:
             display_name_raw = f"'{script_identifier_to_run}'"
+            if script_identifier_to_run == "ABDM":
+                display_name_raw = app_config_holder.get_abdm_launcher_name() or "AB Download Manager"
+
         await send_or_edit_universal_status_message(context.bot, admin_chat_id_int, escape_md_v2(f"⏳ Attempting to run {display_name_raw}\\.\\.\\."), parse_mode="MarkdownV2")
         status_msg_raw = await script_handler.run_script_by_identifier(script_identifier_to_run)
         await send_or_edit_universal_status_message(context.bot, admin_chat_id_int, escape_md_v2(status_msg_raw), parse_mode="MarkdownV2")
@@ -216,7 +237,13 @@ async def handle_pending_search(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.warning(f"Could not delete user's query or prompt message: {e}")
 
-    if "pending_search_type" in context.user_data:
+    if context.user_data.pop("pending_download_url", None):
+        if app_config_holder.is_abdm_enabled():
+            await handle_abdm_download_initiation(update, context, query_text_raw, admin_chat_id_int)
+        else:
+            await send_or_edit_universal_status_message(context.bot, admin_chat_id_int, escape_md_v2(f"⚠️ Cannot add download: AB Download Manager integration is disabled."), parse_mode="MarkdownV2")
+        return
+    elif "pending_search_type" in context.user_data:
         search_type_value = context.user_data.pop("pending_search_type")
         search_type = SearchType(search_type_value)
         search_service_name_raw = "Radarr API" if search_type == SearchType.MOVIE else "Sonarr API"

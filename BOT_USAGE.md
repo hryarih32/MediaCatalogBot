@@ -29,16 +29,20 @@ The bot uses **inline keyboard buttons**.
     *   Prompts for show name, searches Sonarr.
     *   Select result -> Add with defaults or customize.
 
-3.  **🎬 Radarr Controls** (If Radarr enabled)
+3.  **📥 Add Download (ABDM)** (New in 1.1.0)
+    *   Prompts for a direct download URL.
+    *   Sends the URL silently to AB Download Manager on the bot's host machine for immediate download.
+
+4.  **🎬 Radarr Controls** (If Radarr enabled)
     *   **View Download Queue:** Manage Radarr's active downloads.
     *   **Library Maintenance:** Scan files, refresh metadata, rename files for all movies.
 
-4.  **🎞️ Sonarr Controls** (If Sonarr enabled)
+5.  **🎞️ Sonarr Controls** (If Sonarr enabled)
     *   **View Download Queue:** Manage Sonarr's active downloads.
     *   **View Wanted Episodes:** List/search wanted episodes.
     *   **Library Maintenance:** Scan files, refresh metadata, rename files for all series.
 
-5.  **🌐 Plex Controls** (If Plex enabled)
+6.  **🌐 Plex Controls** (If Plex enabled)
     *   **View Now Playing:** See and stop current Plex streams.
     *   **View Recently Added:** Browse recent additions to libraries.
     *   **Search Plex Content:** Search your Plex library (movies/shows), navigate seasons/episodes.
@@ -47,14 +51,14 @@ The bot uses **inline keyboard buttons**.
         *   Refresh Library Metadata
         *   Server Maintenance & Info (Clean Bundles, Empty Trash, Optimize DB, View Server/Library Info).
 
-6.  **🚀 Launchers & Scripts** (If any configured)
-    *   Directly launch configured applications or custom scripts on the bot's host.
+7.  **🚀 Launchers & Scripts** (If any configured)
+    *   Directly launch configured applications or custom scripts on the bot's host. This now includes a configurable launcher for AB Download Manager.
 
-7.  **🖥️ PC Control** (If PC Control enabled & dependencies met)
+8.  **🖥️ PC Control** (If PC Control enabled & dependencies met)
     *   **Media & Sound:** Playback keys, system volume, mute.
     *   **System Power:** PC shutdown/restart (with confirmation).
 
-8.  **⚙️ Bot Settings**
+9.  **⚙️ Bot Settings**
     *   Same as `/settings`. Opens GUI to edit `data/config.py`.
 
 ## General Tips

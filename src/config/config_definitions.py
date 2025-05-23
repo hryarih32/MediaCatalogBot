@@ -16,6 +16,7 @@ CONFIG_KEYS_CORE = [
 CONFIG_KEYS_PLEX = ["PLEX_ENABLED", "PLEX_URL", "PLEX_TOKEN"]
 CONFIG_KEYS_RADARR = ["RADARR_ENABLED", "RADARR_API_URL", "RADARR_API_KEY"]
 CONFIG_KEYS_SONARR = ["SONARR_ENABLED", "SONARR_API_URL", "SONARR_API_KEY"]
+CONFIG_KEYS_ABDM = ["ABDM_ENABLED", "ABDM_PORT"]
 CONFIG_KEYS_SCRIPT_1 = ["SCRIPT_1_ENABLED", "SCRIPT_1_NAME", "SCRIPT_1_PATH"]
 CONFIG_KEYS_SCRIPT_2 = ["SCRIPT_2_ENABLED", "SCRIPT_2_NAME", "SCRIPT_2_PATH"]
 CONFIG_KEYS_SCRIPT_3 = ["SCRIPT_3_ENABLED", "SCRIPT_3_NAME", "SCRIPT_3_PATH"]
@@ -32,12 +33,15 @@ CONFIG_KEYS_PROWLARR_LAUNCHER = [
     "PROWLARR_LAUNCHER_ENABLED", "PROWLARR_LAUNCHER_NAME", "PROWLARR_LAUNCHER_PATH"]
 CONFIG_KEYS_TORRENT_LAUNCHER = [
     "TORRENT_LAUNCHER_ENABLED", "TORRENT_LAUNCHER_NAME", "TORRENT_LAUNCHER_PATH"]
+CONFIG_KEYS_ABDM_LAUNCHER = [
+    "ABDM_LAUNCHER_ENABLED", "ABDM_LAUNCHER_NAME", "ABDM_LAUNCHER_PATH"]
 
 
 ALL_USER_CONFIG_KEYS = CONFIG_KEYS_CORE + \
     CONFIG_KEYS_PLEX + \
     CONFIG_KEYS_RADARR + \
     CONFIG_KEYS_SONARR + \
+    CONFIG_KEYS_ABDM + \
     CONFIG_KEYS_SCRIPT_1 + \
     CONFIG_KEYS_SCRIPT_2 + \
     CONFIG_KEYS_SCRIPT_3 + \
@@ -48,6 +52,7 @@ ALL_USER_CONFIG_KEYS = CONFIG_KEYS_CORE + \
     CONFIG_KEYS_RADARR_LAUNCHER + \
     CONFIG_KEYS_PROWLARR_LAUNCHER + \
     CONFIG_KEYS_TORRENT_LAUNCHER + \
+    CONFIG_KEYS_ABDM_LAUNCHER + \
     CONFIG_KEYS_LOGGING
 
 
@@ -67,6 +72,8 @@ CONFIG_FIELD_DEFINITIONS = {
     "SONARR_API_URL": {"label": "Sonarr API URL (e.g., http://localhost:8989):", "type": "entry", "width": 60, "depends_on": "SONARR_ENABLED", "required_if_enabled": "SONARR_ENABLED"},
     "SONARR_API_KEY": {"label": "Sonarr API Key:", "type": "entry", "width": 60, "depends_on": "SONARR_ENABLED", "required_if_enabled": "SONARR_ENABLED"},
     PC_CONTROL_ENABLED_KEY: {"label": "Enable PC Keyboard/System Controls", "type": "checkbutton_in_frame_title", "default": False},
+    "ABDM_ENABLED": {"label": "Enable AB Download Manager Integration", "type": "checkbutton_in_frame_title", "default": False},
+    "ABDM_PORT": {"label": "ABDM API Port (default: 15151):", "type": "entry", "width": 10, "default": "15151", "depends_on": "ABDM_ENABLED", "required_if_enabled": "ABDM_ENABLED"},
     "SCRIPT_1_ENABLED": {"label": "Enable Script 1", "type": "checkbutton", "default": False},
     "SCRIPT_1_NAME": {"label": "Script 1 Button Name:", "type": "entry", "width": 40, "depends_on": "SCRIPT_1_ENABLED", "required_if_enabled": "SCRIPT_1_ENABLED"},
     "SCRIPT_1_PATH": {"label": "Script 1 Executable/Script Path:", "type": "file_path", "width": 40, "depends_on": "SCRIPT_1_ENABLED", "required_if_enabled": "SCRIPT_1_ENABLED"},
@@ -91,6 +98,9 @@ CONFIG_FIELD_DEFINITIONS = {
     "TORRENT_LAUNCHER_ENABLED": {"label": "Enable Torrent Client Launcher", "type": "checkbutton", "default": False},
     "TORRENT_LAUNCHER_NAME": {"label": "Torrent Client Button Name:", "type": "entry", "width": 40, "default": "Launch Torrent Client", "depends_on": "TORRENT_LAUNCHER_ENABLED", "required_if_enabled": "TORRENT_LAUNCHER_ENABLED"},
     "TORRENT_LAUNCHER_PATH": {"label": "Torrent Client Executable Path:", "type": "file_path", "width": 40, "depends_on": "TORRENT_LAUNCHER_ENABLED", "required_if_enabled": "TORRENT_LAUNCHER_ENABLED"},
+    "ABDM_LAUNCHER_ENABLED": {"label": "Enable AB Download Manager Launcher", "type": "checkbutton", "default": False},
+    "ABDM_LAUNCHER_NAME": {"label": "ABDM Button Name:", "type": "entry", "width": 40, "default": "Launch ABDM", "depends_on": "ABDM_LAUNCHER_ENABLED", "required_if_enabled": "ABDM_LAUNCHER_ENABLED"},
+    "ABDM_LAUNCHER_PATH": {"label": "ABDM Executable Path:", "type": "file_path", "width": 40, "depends_on": "ABDM_LAUNCHER_ENABLED", "required_if_enabled": "ABDM_LAUNCHER_ENABLED"},
     "ADD_MEDIA_MAX_SEARCH_RESULTS": {"label": "Max API Search Results to Process (Radarr/Sonarr):", "type": "entry", "width": 10, "default": "30"},
     "ADD_MEDIA_ITEMS_PER_PAGE": {"label": "Items Per Page (Search Results & Plex Lists):", "type": "entry", "width": 10, "default": "5"},
 
@@ -105,6 +115,7 @@ class SearchType(str, Enum):
 
 
 class CallbackData(str, Enum):
+    CMD_ADD_DOWNLOAD_INIT = "cmd_add_download_init"
 
     CMD_SETTINGS = "cmd_settings"
     CMD_HOME_BACK = "cmd_home_back"
@@ -182,6 +193,7 @@ class CallbackData(str, Enum):
     CMD_LAUNCH_RADARR = "cmd_launch_radarr"
     CMD_LAUNCH_PROWLARR = "cmd_launch_prowlarr"
     CMD_LAUNCH_TORRENT = "cmd_launch_torrent"
+    CMD_LAUNCH_ABDM = "cmd_launch_abdm"
     CMD_SCRIPT_1 = "cmd_script_1"
     CMD_SCRIPT_2 = "cmd_script_2"
     CMD_SCRIPT_3 = "cmd_script_3"

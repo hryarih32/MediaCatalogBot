@@ -1,5 +1,3 @@
-
-
 loaded_config = None
 PROJECT_VERSION = "Unknown"
 
@@ -183,3 +181,23 @@ def get_prowlarr_launcher_path(
 def is_torrent_launcher_enabled() -> bool: return is_service_launcher_enabled("TORRENT")
 def get_torrent_launcher_name() -> str | None: return get_service_launcher_name("TORRENT")
 def get_torrent_launcher_path() -> str | None: return get_service_launcher_path("TORRENT")
+
+
+def is_abdm_enabled():
+    if loaded_config and hasattr(loaded_config, 'ABDM_ENABLED'):
+        return loaded_config.ABDM_ENABLED
+    return False
+
+
+def get_abdm_port() -> int | None:
+    if loaded_config and hasattr(loaded_config, 'ABDM_PORT'):
+        try:
+            return int(loaded_config.ABDM_PORT)
+        except (ValueError, TypeError):
+            return 15151
+    return 15151
+
+
+def is_abdm_launcher_enabled() -> bool: return is_service_launcher_enabled("ABDM")
+def get_abdm_launcher_name() -> str | None: return get_service_launcher_name("ABDM")
+def get_abdm_launcher_path() -> str | None: return get_service_launcher_path("ABDM")

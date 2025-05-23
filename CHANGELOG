@@ -1,0 +1,26 @@
+# Changelog
+
+## [1.1.0] - 2025-05-23
+
+### Added
+
+-   **AB Download Manager (ABDM) Integration**:
+    -   New API integration to remotely add and start downloads in AB Download Manager via its local API.
+    -   New "📥 Add Download (ABDM)" button in the main menu for direct URL submission.
+    -   Downloads are added and started silently by default, using ABDM's internal settings for filename and save path.
+    -   New configuration options in the GUI (`/settings`):
+        -   `ABDM_ENABLED`: Toggle ABDM API features.
+        -   `ABDM_PORT`: Set the API port for ABDM (default: `15151`).
+        -   `ABDM_LAUNCHER_ENABLED`, `ABDM_LAUNCHER_NAME`, `ABDM_LAUNCHER_PATH`: Configure a button to launch the ABDM executable from the bot's "Launchers & Scripts" menu.
+-   Updated `README.md` to reflect new ABDM integration, usage instructions, and features.
+-   Updated `BOT_USAGE.md` to include guidance on using the new "Add Download (ABDM)" functionality.
+-   Enhanced error handling and logging for external API interactions.
+
+### Changed
+
+-   Refactored core Telegram handler setup (`src/bot/bot_telegram.py`) for better modularity and inclusion of new commands.
+-   Refined config validation (`src/config/config_manager.py`) to include new ABDM settings.
+
+### Fixed
+
+-   Resolved an issue where the "Add Download (ABDM)" button's callback was not correctly registered after the initial implementation, causing it to not respond.

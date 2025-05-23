@@ -18,6 +18,7 @@ from src.bot.bot_initialization import (
     set_bot_commands, show_or_edit_main_menu,
     send_or_edit_universal_status_message
 )
+from src.handlers.abdm import *
 from src.bot.bot_telegram import setup_handlers
 from src.app.app_setup import perform_initial_setup
 from src.app import app_config_holder

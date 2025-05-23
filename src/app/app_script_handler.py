@@ -11,6 +11,7 @@ SERVICE_LAUNCHER_IDENTIFIERS = {
     "SONARR": "SONARR_LAUNCHER",
     "RADARR": "RADARR_LAUNCHER",
     "PROWLARR": "PROWLARR_LAUNCHER",
+    "ABDM": "ABDM_LAUNCHER",
     "TORRENT": "TORRENT_LAUNCHER"
 }
 
@@ -35,12 +36,17 @@ async def run_script_by_identifier(identifier: str) -> str:
             return f"❌ Invalid script identifier: {identifier}"
     elif identifier in SERVICE_LAUNCHER_IDENTIFIERS:
         service_prefix = identifier
-        script_enabled = app_config_holder.is_service_launcher_enabled(
-            service_prefix)
-        script_name = app_config_holder.get_service_launcher_name(
-            service_prefix) or f"Launch {service_prefix.capitalize()}"
-        script_path = app_config_holder.get_service_launcher_path(
-            service_prefix)
+        if service_prefix == "ABDM":
+            script_enabled = app_config_holder.is_abdm_launcher_enabled()
+            script_name = app_config_holder.get_abdm_launcher_name() or "Launch AB Download Manager"
+            script_path = app_config_holder.get_abdm_launcher_path()
+        else:
+            script_enabled = app_config_holder.is_service_launcher_enabled(
+                service_prefix)
+            script_name = app_config_holder.get_service_launcher_name(
+                service_prefix) or f"Launch {service_prefix.capitalize()}"
+            script_path = app_config_holder.get_service_launcher_path(
+                service_prefix)
     else:
         logger.error(f"Unknown script/launcher identifier: {identifier}")
         return f"❌ Unknown script or launcher: {identifier}"

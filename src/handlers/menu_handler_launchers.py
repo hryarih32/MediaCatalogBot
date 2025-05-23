@@ -40,12 +40,16 @@ async def display_launchers_menu(update: Update, context: ContextTypes.DEFAULT_T
         "RADARR": CallbackData.CMD_LAUNCH_RADARR,
         "PROWLARR": CallbackData.CMD_LAUNCH_PROWLARR,
         "TORRENT": CallbackData.CMD_LAUNCH_TORRENT,
+        "ABDM": CallbackData.CMD_LAUNCH_ABDM,
     }
 
     for service_prefix, cb_data in ordered_launchers_map.items():
         if app_config_holder.is_service_launcher_enabled(service_prefix):
             launcher_name = app_config_holder.get_service_launcher_name(
                 service_prefix) or f"Launch {service_prefix.capitalize()}"
+
+            if service_prefix == "ABDM":
+                launcher_name = app_config_holder.get_abdm_launcher_name() or "Launch AB Download Manager"
 
             keyboard.append([InlineKeyboardButton(
                 f"▶️ {launcher_name}", callback_data=cb_data.value)])

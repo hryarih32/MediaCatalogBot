@@ -74,6 +74,11 @@ def config_exists_and_is_complete(cfg_file_path_in_data):
                     logger.debug(
                         f"Config check: Sonarr enabled, missing '{key}' in {normalized_cfg_path}")
                     return False
+        if getattr(config_module, "ABDM_ENABLED", False):
+            if not hasattr(config_module, "ABDM_PORT") or not str(getattr(config_module, "ABDM_PORT", "")).strip().isdigit():
+                logger.debug(
+                    f"Config check: ABDM enabled, missing or invalid ABDM_PORT in {normalized_cfg_path}")
+                return False
         for i in range(1, 4):
             if getattr(config_module, f"SCRIPT_{i}_ENABLED", False):
                 for key_suffix in ["NAME", "PATH"]:
@@ -82,7 +87,8 @@ def config_exists_and_is_complete(cfg_file_path_in_data):
                         logger.debug(
                             f"Config check: Script {i} enabled, missing '{key}' in {normalized_cfg_path}")
                         return False
-        launcher_prefixes = ["PLEX", "SONARR", "RADARR", "PROWLARR", "TORRENT"]
+        launcher_prefixes = ["PLEX", "SONARR",
+                             "RADARR", "PROWLARR", "TORRENT", "ABDM"]
         for prefix in launcher_prefixes:
             if getattr(config_module, f"{prefix}_LAUNCHER_ENABLED", False):
                 if not hasattr(config_module, f"{prefix}_LAUNCHER_PATH") or not getattr(config_module, f"{prefix}_LAUNCHER_PATH", "").strip():
@@ -170,6 +176,10 @@ def validate_config_values(cfg_module, cfg_file_path_validated):
             log_error("SONARR_API_URL is required because Sonarr is enabled.")
         if not getattr(cfg_module, "SONARR_API_KEY", "").strip():
             log_error("SONARR_API_KEY is required because Sonarr is enabled.")
+    if getattr(cfg_module, "ABDM_ENABLED", False):
+        if not (hasattr(cfg_module, "ABDM_PORT") and str(getattr(cfg_module, "ABDM_PORT", "")).strip().isdigit()):
+            log_error(
+                "ABDM_PORT is required and must be a number because AB Download Manager is enabled.")
 
     for i in range(1, 4):
         if getattr(cfg_module, f"SCRIPT_{i}_ENABLED", False):
@@ -183,7 +193,8 @@ def validate_config_values(cfg_module, cfg_file_path_validated):
             elif not os.path.exists(script_path) and not getattr(sys, 'frozen', False):
                 logger.warning(
                     f"SCRIPT_{i}_PATH ('{script_path}') does not exist (Script {i} is enabled). This might be an issue.")
-    launcher_prefixes_val = ["PLEX", "SONARR", "RADARR", "PROWLARR", "TORRENT"]
+    launcher_prefixes_val = ["PLEX", "SONARR",
+                             "RADARR", "PROWLARR", "TORRENT", "ABDM"]
     for prefix_val in launcher_prefixes_val:
         if getattr(cfg_module, f"{prefix_val}_LAUNCHER_ENABLED", False):
             if not getattr(cfg_module, f"{prefix_val}_LAUNCHER_NAME", "").strip():

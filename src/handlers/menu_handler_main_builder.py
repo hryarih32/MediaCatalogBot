@@ -28,6 +28,11 @@ def build_main_menu_content(version: str):
         sonarr_status_emoji = "✅" if app_config_holder.get_sonarr_base_api_url(
         ) and app_config_holder.get_sonarr_api_key() else "⚠️"
 
+    abdm_status_emoji = "🔘"
+    if app_config_holder.is_abdm_enabled():
+        abdm_port_val = app_config_holder.get_abdm_port()
+        abdm_status_emoji = "✅" if abdm_port_val is not None else "⚠️"
+
     formatted_startup_time = "Unknown"
     startup_time_file = get_startup_time_file_path()
     if os.path.exists(startup_time_file):
@@ -52,7 +57,7 @@ def build_main_menu_content(version: str):
     dynamic_menu_text = (
         f"Media Bot Menu \\(v{escaped_version}\\)\n"
         f"\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\n"
-        f"Plex API: {plex_status_emoji} \\| Radarr API: {radarr_status_emoji} \\| Sonarr API: {sonarr_status_emoji}\n"
+        f"Plex API: {plex_status_emoji} \\| Radarr API: {radarr_status_emoji} \\| Sonarr API: {sonarr_status_emoji} \\| ABDM API: {abdm_status_emoji}\n"
         f"Last Restart: {escaped_startup_time}"
     )
 
@@ -66,6 +71,10 @@ def build_main_menu_content(version: str):
         keyboard.append([InlineKeyboardButton("➕ Add TV Show (Sonarr)",
                         callback_data=CallbackData.CMD_ADD_SHOW_INIT.value)])
 
+    if app_config_holder.is_abdm_enabled():
+        keyboard.append([InlineKeyboardButton("📥 Add Download (ABDM)",
+                                              callback_data=CallbackData.CMD_ADD_DOWNLOAD_INIT.value)])
+
     if app_config_holder.is_radarr_enabled():
         keyboard.append([InlineKeyboardButton("🎬 Radarr Controls",
                         callback_data=CallbackData.CMD_RADARR_CONTROLS.value)])
@@ -77,7 +86,8 @@ def build_main_menu_content(version: str):
                         callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
 
     any_launcher_enabled = False
-    launcher_prefixes = ["PLEX", "SONARR", "RADARR", "PROWLARR", "TORRENT"]
+    launcher_prefixes = ["PLEX", "SONARR",
+                         "RADARR", "PROWLARR", "TORRENT", "ABDM"]
     for prefix in launcher_prefixes:
         if app_config_holder.is_service_launcher_enabled(prefix):
             any_launcher_enabled = True

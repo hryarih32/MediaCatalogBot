@@ -1,6 +1,7 @@
 python-telegram-bot[job-queue]
 PlexAPI
 requests
+websocket-client
 backoff
 pyinstaller
 pyautogui
