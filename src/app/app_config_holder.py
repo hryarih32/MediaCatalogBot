@@ -4,6 +4,12 @@ PROJECT_VERSION = "Unknown"
 DEFAULT_ADD_MEDIA_MAX_SEARCH_RESULTS = 30
 DEFAULT_ADD_MEDIA_ITEMS_PER_PAGE = 5
 
+ROLE_ADMIN = "ADMIN"
+ROLE_STANDARD_USER = "STANDARD_USER"
+
+ROLE_REQUEST_ACCESS = "REQUEST_ACCESS"
+ROLE_UNKNOWN = "UNKNOWN"
+
 
 def set_config(config_module):
     global loaded_config
@@ -23,6 +29,26 @@ def get_chat_id_str():
     if loaded_config and hasattr(loaded_config, 'CHAT_ID'):
         return str(loaded_config.CHAT_ID)
     return None
+
+
+def is_primary_admin(chat_id: int | str) -> bool:
+    """Checks if the given chat_id is the primary admin defined in config."""
+    primary_admin_chat_id_str = get_chat_id_str()
+    if primary_admin_chat_id_str:
+        return str(chat_id) == primary_admin_chat_id_str
+    return False
+
+
+def get_user_role(chat_id: int | str) -> str:
+    """
+    Determines the role of a user.
+    In Phase 2, this will be basic: primary admin is ADMIN, others are STANDARD_USER for menu display.
+    This will be expanded in later phases with a user management system.
+    """
+    if is_primary_admin(chat_id):
+        return ROLE_ADMIN
+
+    return ROLE_STANDARD_USER
 
 
 def is_plex_enabled():

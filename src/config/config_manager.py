@@ -4,7 +4,6 @@ import logging
 import importlib.util
 import shutil
 
-
 from src.app.app_file_utils import get_config_template_path, get_project_version
 from .config_definitions import (
     ALL_USER_CONFIG_KEYS,

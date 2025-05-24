@@ -3,7 +3,6 @@ import os
 import threading
 from telegram.ext import CallbackContext, Application
 
-
 from .app_file_utils import get_data_storage_path, get_config_file_path
 from src.config.config_manager import _load_config_module_from_path, validate_config_values
 from .app_service_initializer import initialize_services_with_config
@@ -13,7 +12,6 @@ import sys
 from .app_config_ui import run_config_ui
 from src.config.config_definitions import ALL_USER_CONFIG_KEYS, CONFIG_FIELD_DEFINITIONS, LOG_LEVEL_OPTIONS
 from src.bot.bot_text_utils import escape_md_v2
-
 
 logger = logging.getLogger(__name__)
 

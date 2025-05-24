@@ -3,13 +3,12 @@ import pyautogui
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_initialization import (
     load_menu_message_id,
     send_or_edit_universal_status_message
 )
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from .menu_handler_pc_root import display_pc_control_categories_menu
 from src.bot.bot_text_utils import escape_md_v2
 
@@ -27,7 +26,6 @@ logger = logging.getLogger(__name__)
 PC_MEDIA_SOUND_MENU_TEXT_RAW = "🎧 PC Media & Sound Controls"
 PC_CONTROL_CALLBACK_PREFIX = "cb_pc_"
 
-
 MEDIA_ACTION_MAP = {
     f"{PC_CONTROL_CALLBACK_PREFIX}prev": "prevtrack",
     f"{PC_CONTROL_CALLBACK_PREFIX}playpause": "playpause",
@@ -35,7 +33,7 @@ MEDIA_ACTION_MAP = {
     f"{PC_CONTROL_CALLBACK_PREFIX}mute": "volumemute",
     f"{PC_CONTROL_CALLBACK_PREFIX}stop": "stop",
     f"{PC_CONTROL_CALLBACK_PREFIX}seek_bwd": "left",
-    f"{PC_CONTROL_CALLBACK_PREFIX}seek_fwd": "right",  # Arrow key
+    f"{PC_CONTROL_CALLBACK_PREFIX}seek_fwd": "right",
 }
 
 
@@ -66,7 +64,13 @@ async def display_media_sound_controls_menu(update: Update, context: ContextType
     if query:
         await query.answer()
     chat_id = update.effective_chat.id
+
     admin_chat_id_str = app_config_holder.get_chat_id_str()
+
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"PC media controls attempt by non-primary admin {chat_id}.")
+        return
 
     keyboard = [
         [
@@ -146,6 +150,14 @@ async def handle_media_sound_action(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     callback_data = query.data
     chat_id_for_status = query.message.chat.id if query.message else None
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+
+    if not admin_chat_id_str or str(chat_id_for_status) != admin_chat_id_str:
+        logger.warning(
+            f"PC media action attempt by non-primary admin {chat_id_for_status}.")
+        await query.answer("Access Denied.", show_alert=True)
+        return
 
     if callback_data == f"{PC_CONTROL_CALLBACK_PREFIX}no_op_info":
         await query.answer("Advanced volume controls require the 'pycaw' library to be installed on the bot's host machine.", show_alert=True)

@@ -1,15 +1,28 @@
 # Media Catalog Telegram Bot
 
-**Version:** 1.1.0
+**Version:** 2.0.0
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
 
 **License:** GNU General Public License v3.0 (see `LICENSE` file)
 
-The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It offers integration with popular self-hosted applications like Plex, Radarr, and Sonarr, along with features for local PC control and custom script execution.
+The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It offers integration with popular self-hosted applications like Plex, Radarr, and Sonarr, along with features for local PC control and custom script execution. Version 2.0.0 introduces user roles and a media request system.
 
 ## Key Features
 
-*   **Plex Media Server Integration:**
+*   **Multi-User Roles (New in 2.0.0):**
+    *   `ADMIN` role for full control (primary admin defined in `config.py`).
+    *   `STANDARD_USER` role for requesting media and viewing personal requests.
+    *   (Full user management via GUI planned for a future update).
+
+*   **Media Request System (New in 2.0.0):**
+    *   `STANDARD_USER`s can search for and request Movies (via Radarr) and TV Shows (via Sonarr).
+    *   `STANDARD_USER`s can view their submitted requests and their status (Pending, Approved, Rejected) in a "My Requests" menu.
+    *   `ADMIN`s have an "Admin Requests" menu to view, approve, or reject pending user requests.
+        *   Approval by an admin triggers the Radarr/Sonarr add flow for the admin (choice of default or custom settings).
+        *   Rejection allows admins to provide an optional reason.
+    *   Admins can view a history of processed requests.
+
+*   **Plex Media Server Integration (Admin Focused):**
     *   View "Now Playing" status and stop active streams.
     *   Browse "Recently Added" items from your Plex libraries.
     *   Search your Plex libraries for movies, TV shows, seasons, and individual episodes.
@@ -18,59 +31,65 @@ The Media Catalog Telegram Bot is a versatile tool designed to help you manage a
     *   Perform server maintenance: clean bundles, empty trash, optimize database, view server info.
 
 *   **Radarr (Movie Management) Integration:**
-    *   Search for movies via Radarr (powered by TMDb).
-    *   Add movies to Radarr with either default settings or a step-by-step customization flow.
-    *   View and manage your Radarr download queue.
-    *   Perform Radarr library maintenance: disk rescans, metadata refresh, file renaming.
+    *   `ADMIN`s can search for movies and add them directly with default or custom settings.
+    *   `STANDARD_USER`s can search for movies and submit them as requests.
+    *   `ADMIN`s can view and manage the Radarr download queue and perform library maintenance.
 
 *   **Sonarr (TV Show Management) Integration:**
-    *   Search for TV shows via Sonarr (powered by TheTVDB).
-    *   Add TV shows to Sonarr with default or customized settings.
-    *   View and manage your Sonarr download queue.
-    *   Access a list of "Wanted Episodes" and trigger searches.
-    *   Perform Sonarr library maintenance: disk rescans, metadata refresh, file renaming.
+    *   `ADMIN`s can search for TV shows and add them directly with default or custom settings.
+    *   `STANDARD_USER`s can search for TV shows and submit them as requests.
+    *   `ADMIN`s can view and manage the Sonarr download queue, "Wanted Episodes", and perform library maintenance.
 
-*   **AB Download Manager Integration (New in 1.1.0):**
-    *   Add direct downloads to AB Download Manager instantly by providing a URL.
+*   **AB Download Manager Integration (Primary Admin Only):**
+    *   The primary `ADMIN` (defined by `CHAT_ID` in `config.py`) can add direct downloads to AB Download Manager by providing a URL.
     *   Configurable ABDM API port and optional launcher via GUI.
 
-*   **PC Control (Local Machine):**
+*   **PC Control (Admin Focused, Local Machine):**
     *   (Requires `pyautogui` and `pycaw` Python libraries)
     *   Control media playback, system volume, and mute.
     *   Initiate PC shutdown or restart commands (with confirmation).
 
-*   **Application Launchers & Custom Scripts:**
-    *   Configure buttons to launch applications (including newly added AB Download Manager) or run custom scripts on the bot's host machine.
+*   **Application Launchers & Custom Scripts (Admin Focused):**
+    *   Configure buttons to launch applications (Plex, Sonarr, Radarr, Prowlarr, Torrent Client, AB Download Manager) or run custom scripts on the bot's host machine.
 
 *   **User-Friendly Configuration:**
-    *   Graphical User Interface (GUI) for setup and modification of settings (stored in `data/config.py`), now including AB Download Manager settings.
+    *   Graphical User Interface (GUI) for setup and modification of settings (stored in `data/config.py`).
     *   A template is provided in `config_templates/config.py.default`.
 
 *   **Interactive Telegram Menus:**
     *   Intuitive inline keyboard buttons for navigation.
-    *   Persistent main menu and a dedicated status message area.
+    *   Persistent main menu (per user) and a dedicated status message area (per user).
 
 ## Project Structure Overview
 
 *   `MediaCatalog.py`: Main application script (in project root).
-*   `src/`: Contains all core Python modules (app logic, bot handlers, services).
-    *   `src/services/abdm/`: New service for AB Download Manager integration.
-    *   `src/handlers/abdm/`: New handlers for AB Download Manager commands.
-*   `data/`: For runtime data:
-    *   `config.py`: **Your active configuration file (user-generated or copied from template).**
+*   `VERSION`: File containing the current bot version (e.g., `2.0.0`).
+*   `LICENSE`: The license file for the project.
+*   `src/`: Contains all core Python modules.
+    *   `src/app/`: Core application logic, configuration, file utilities.
+    *   `src/bot/`: Telegram bot specific logic (initialization, handlers, callback data).
+    *   `src/config/`: Configuration definitions and management.
+    *   `src/handlers/`: Callback query and command handlers, organized by feature.
+        *   `src/handlers/admin_requests/`: Handlers for admin management of user requests.
+        *   `src/handlers/user_requests/`: Handlers for users viewing their own requests.
+        *   `src/handlers/abdm/`, `src/handlers/plex/`, `src/handlers/radarr/`, `src/handlers/sonarr/`, `src/handlers/pc_control/`, `src/handlers/shared/`
+    *   `src/services/`: Integrations with external services (Plex, Radarr, Sonarr, ABDM).
+*   `data/`: For runtime data (created by the bot on first run if it doesn't exist):
+    *   `config.py`: **Your active configuration file.** (Generated from template or GUI).
+    *   `requests.json`: Stores all user media requests.
     *   `mediabot.log`: Bot activity and error logs.
-    *   Persistence files (e.g., `mediabot_persistence.pickle`).
-    *   Message ID files (e.g., `msg_id_menu.txt`).
+    *   `msg_id_menu_CHATID.txt`, `msg_id_universal_status_CHATID.txt`: Per-user message ID persistence files (these will be consolidated into `bot_state.json` in a future update).
+    *   `msg_last_startup_time.txt`: Stores the last startup time of the bot.
     *   `search_results/`: Temporary storage for Radarr/Sonarr search results.
 *   `build_tools/`: Scripts for building the application (e.g., `build_application.bat`).
-*   `config_templates/`: Contains `config.py.default`.
-*   `resources/`: Static resources like `ico.ico`.
+*   `config_templates/`: Contains `config.py.default` (the template for `data/config.py`).
+*   `resources/`: Static resources like `ico.ico` (for the GUI and build).
 *   `requirements/`: Contains `requirements.txt`.
-*   `venv/`: Python virtual environment (created by user).
+*   `venv/`: Python virtual environment (created by user during setup).
 
 ## Getting Started
 
-For detailed instructions on Python installation, setting up the virtual environment, installing dependencies (from `requirements/requirements.txt`), and initial configuration, please refer to:
+For detailed instructions on Python installation, setting up the virtual environment, installing dependencies, and initial configuration, please refer to:
 
 **`SETUP_INSTRUCTIONS.md`**
 
@@ -79,22 +98,25 @@ For detailed instructions on Python installation, setting up the virtual environ
 Once the bot is set up and running (e.g., using `Run Media Catalog Bot.bat` on Windows, or `python MediaCatalog.py` from the project root after activating the venv), interact with it via Telegram.
 
 Key Telegram commands:
-*   `/start` or `/home`: Displays/refreshes the main menu.
-*   `/settings`: Opens the configuration GUI on the bot's host.
-*   `/status`: Refreshes the bot's universal status message.
+*   `/start` or `/home`: Displays/refreshes the main menu (menu content varies by user role).
+*   `/settings`: (Primary Admin Only) Opens the configuration GUI on the bot's host.
+*   `/status`: (Admins and Standard Users) Refreshes the bot's universal status message for your chat.
 
-For a guide on using the bot's menus, see:
+For a guide on using the bot's menus and features, see:
 **`BOT_USAGE.md`**
 
 ## Configuration (`data/config.py`)
 
-The bot's behavior is controlled by `data/config.py`. A template is in `config_templates/config.py.default`. Use the GUI (`/settings`) for easy management.
+The bot's behavior is controlled by `data/config.py`. Use the GUI (`/settings` by Primary Admin) for easy management.
 
 Key settings:
-*   Telegram Bot Token and Chat ID.
-*   Enable/disable flags and API details for Plex, Radarr, Sonarr, **AB Download Manager**, PC Control.
+*   **Telegram Bot Token:** Your unique bot token from `@BotFather`.
+*   **Chat ID:** The numerical Telegram User ID of the **Primary Administrator**. This user has the highest level of access, including `/settings`.
+*   Enable/disable flags and API details for Plex, Radarr, Sonarr, AB Download Manager, PC Control.
 *   Paths/names for custom scripts and launchers.
-*   Logging level and UI preferences.
+*   Logging level and UI preferences (e.g., items per page in search results).
+
+*(Full user management for adding other Admins and Standard Users via the GUI is planned for a future update. For version 2.0.0, any user interacting with the bot who is not the Primary Admin is treated as a Standard User for media request features).*
 
 ## Stopping the Bot
 
@@ -103,7 +125,7 @@ Key settings:
 
 ## Building a Standalone Executable (Windows Optional)
 
-Refer to `SETUP_INSTRUCTIONS.md` ("Optional: Creating a Standalone Executable") for using `build_tools/build_application.bat`.
+Refer to `SETUP_INSTRUCTIONS.md` ("Optional: Creating a Standalone Executable") for using `build_tools/build_application.bat`. This bundles Python and dependencies into a single `.exe` file.
 
 ## ❤️ Support the Project
 
@@ -133,7 +155,7 @@ Thank you for your support!
 
 ## License
 
-GNU General Public License v3.0. See `LICENSE`.
+This project is licensed under the GNU General Public License v3.0 - see the `LICENSE` file for details.
 
 ## Contributing
 
@@ -141,4 +163,4 @@ Contributions, bug reports, and feature requests are welcome! Please feel free t
 
 ## Disclaimer
 
-This software is provided "as is". Use responsibly. The author(s) are not responsible for any unintended consequences resulting from its use or misuse. Keep API keys secure.
+This software is provided "as is", without warranty of any kind, express or implied. Use responsibly and at your own risk. The author(s) are not responsible for any unintended consequences resulting from its use or misuse. Always keep your API keys and sensitive information secure.

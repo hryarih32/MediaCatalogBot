@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.services.radarr.bot_radarr_manage import (
     rescan_all_movies,
     refresh_all_movies,
@@ -12,7 +12,6 @@ from src.services.radarr.bot_radarr_manage import (
     remove_queue_item as radarr_remove_queue_item,
     trigger_movie_search_for_id as radarr_trigger_movie_search
 )
-
 
 from .menu_handler_library_management_radarr import display_radarr_queue_menu
 
@@ -27,6 +26,13 @@ async def handle_radarr_library_action(update: Update, context: ContextTypes.DEF
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Radarr library action attempt by non-primary admin {chat_id}.")
+        return
+
     callback_data_str = query.data
     result_message_raw = "An unknown error occurred with Radarr action."
     current_page_radarr = context.user_data.get('radarr_queue_current_page', 1)
@@ -111,7 +117,7 @@ async def handle_radarr_library_action(update: Update, context: ContextTypes.DEF
     else:
         logger.warning(f"Unhandled Radarr library action: {callback_data_str}")
         result_message_raw = "⚠️ Unrecognized Radarr library management action."
-        admin_chat_id_str = app_config_holder.get_chat_id_str()
+
         if admin_chat_id_str:
             await show_or_edit_main_menu(admin_chat_id_str, context)
 

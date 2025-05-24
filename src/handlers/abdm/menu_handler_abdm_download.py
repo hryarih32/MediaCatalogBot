@@ -13,6 +13,7 @@ async def handle_abdm_download_initiation(update: Update, context: ContextTypes.
     """
     Handles the initiation of a download request to AB Download Manager.
     This function is called after the user provides the URL.
+    Restriction to primary admin is handled before this function is called (in menu_handler_root).
     """
     await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
 
@@ -33,6 +34,4 @@ async def handle_abdm_download_initiation(update: Update, context: ContextTypes.
 
     await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(abdm_response), parse_mode="MarkdownV2")
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if admin_chat_id_str and context.bot_data:
-        await show_or_edit_main_menu(admin_chat_id_str, context, force_send_new=False)
+    await show_or_edit_main_menu(str(chat_id), context, force_send_new=False)

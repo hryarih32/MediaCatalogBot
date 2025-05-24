@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.bot.bot_text_utils import escape_md_v1, escape_md_v2
 import src.app.app_config_holder as app_config_holder
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_initialization import send_or_edit_universal_status_message
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.services.plex.bot_plex_media_items import get_plex_show_seasons, get_plex_season_episodes
@@ -21,6 +21,13 @@ async def plex_search_list_seasons_callback(update: Update, context: ContextType
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex list seasons attempt by non-primary admin {chat_id}.")
+        return
+
     show_rating_key = query.data.replace(
         CallbackData.CMD_PLEX_SEARCH_LIST_SEASONS_PREFIX.value, "")
 
@@ -48,6 +55,7 @@ async def plex_search_list_seasons_callback(update: Update, context: ContextType
 
     keyboard = []
     if seasons:
+
         seasons.sort(key=lambda s: s.get("season_number", 999))
         for season in seasons:
             button_season_title = season['title']
@@ -100,6 +108,13 @@ async def plex_search_list_episodes_callback(update: Update, context: ContextTyp
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex list episodes attempt by non-primary admin {chat_id}.")
+        return
+
     show_rating_key, season_number_str = "", ""
 
     if query.data.startswith(CallbackData.CMD_PLEX_SEARCH_LIST_EPISODES_PREFIX.value):

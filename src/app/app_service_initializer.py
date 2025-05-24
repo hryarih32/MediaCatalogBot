@@ -1,7 +1,6 @@
 import logging
 import src.app.app_config_holder as app_config_holder
 
-
 from src.services.plex.bot_plex_core import init_plex_config
 from src.services.radarr.bot_radarr_core import init_radarr_config
 from src.services.sonarr.bot_sonarr_core import init_sonarr_config

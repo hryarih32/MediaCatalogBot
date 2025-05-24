@@ -4,13 +4,11 @@ from telegram.ext import ContextTypes
 
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_initialization import send_or_edit_universal_status_message
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_text_utils import escape_md_v2
-
 
 from src.handlers.radarr.menu_handler_library_management_radarr import display_radarr_queue_menu
 from src.handlers.sonarr.menu_handler_library_management_sonarr import display_sonarr_queue_menu
-
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +21,8 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
         await query.answer()
     chat_id = update.effective_chat.id
 
-    item_title_short_raw = item_title_from_queue.replace("➡️ ", "")
+    item_title_short_raw = item_title_from_queue.replace(
+        "➡️ ", "")
     if len(item_title_short_raw) > 40:
         item_title_short_raw = item_title_short_raw[:37] + "..."
 
@@ -36,8 +35,10 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
     if service_name == "Radarr":
         keyboard.append([InlineKeyboardButton("🗑️ Remove (No Blocklist)",
                         callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX.value}{item_id}")])
+
         keyboard.append([InlineKeyboardButton("🚫🔍 Blocklist & Search Again",
-                        callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}")])
+
+                                              callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}")])
         keyboard.append([InlineKeyboardButton("🔄 Refresh Queue List",
                         callback_data=CallbackData.CMD_RADARR_QUEUE_REFRESH.value)])
 
@@ -46,8 +47,10 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
     elif service_name == "Sonarr":
         keyboard.append([InlineKeyboardButton("🗑️ Remove (No Blocklist)",
                         callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX.value}{item_id}")])
+
         keyboard.append([InlineKeyboardButton("🚫🔍 Blocklist & Search Again",
-                        callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}")])
+
+                                              callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}")])
         keyboard.append([InlineKeyboardButton("🔄 Refresh Queue List",
                         callback_data=CallbackData.CMD_SONARR_QUEUE_REFRESH.value)])
 

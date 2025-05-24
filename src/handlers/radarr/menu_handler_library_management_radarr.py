@@ -7,7 +7,7 @@ from telegram.error import BadRequest
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_initialization import send_or_edit_universal_status_message
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.services.radarr.bot_radarr_manage import get_radarr_queue
 
 from src.handlers.radarr.menu_handler_radarr_controls import display_radarr_controls_menu
@@ -16,6 +16,7 @@ from src.bot.bot_text_utils import escape_md_v2, escape_md_v1
 logger = logging.getLogger(__name__)
 
 RADARR_QUEUE_MENU_TEXT_TEMPLATE_RAW = "📥 Radarr - Download Queue (Page {current_page}/{total_pages})"
+
 DEFAULT_PAGE_SIZE = 5
 
 
@@ -24,6 +25,12 @@ async def display_radarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
     if query:
         await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(f"Radarr queue attempt by non-primary admin {chat_id}.")
+        return
+
     is_refresh_call = query and query.data == CallbackData.CMD_RADARR_QUEUE_REFRESH.value
 
     queue_data = get_radarr_queue(page=page, page_size=DEFAULT_PAGE_SIZE)
@@ -73,7 +80,9 @@ async def display_radarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
             timeleft_raw = item.get('timeleft', 'N/A')
             item_id_for_actions = str(item.get('id'))
             movie_id_for_search = str(
+
                 movie_info.get('id', item.get('movieId', '0')))
+
             display_text = f"{title_raw} ({status_raw} - {progress_percent_raw} - {timeleft_raw})"
             if len(display_text) > 50:
                 display_text = display_text[:47] + "..."

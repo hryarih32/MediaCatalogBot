@@ -6,7 +6,6 @@ from src.app.app_file_utils import get_search_results_file_path
 from src.services.sonarr.bot_sonarr_core import _sonarr_request
 import src.app.app_config_holder as app_config_holder
 
-
 logger = logging.getLogger(__name__)
 
 SHOW_RESULTS_FILE_NAME = 'show_search_results.json'

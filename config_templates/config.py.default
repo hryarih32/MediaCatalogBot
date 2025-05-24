@@ -1,4 +1,3 @@
-
 TELEGRAM_BOT_TOKEN = ""
 CHAT_ID = ""
 
@@ -51,7 +50,6 @@ SCRIPT_3_ENABLED = False
 SCRIPT_3_NAME = ""
 SCRIPT_3_PATH = r""
 
-# --- New ABDM Integration Settings ---
 ABDM_ENABLED = False
 ABDM_PORT = 15151
 

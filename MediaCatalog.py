@@ -1,5 +1,4 @@
 
-
 import logging
 import os
 import sys
@@ -8,7 +7,6 @@ import time
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, PicklePersistence, Application, JobQueue
 from telegram.error import NetworkError, TimedOut
-
 
 from src.app.app_lifecycle import (
     sigint_handler_sync,
@@ -22,7 +20,6 @@ from src.handlers.abdm import *
 from src.bot.bot_telegram import setup_handlers
 from src.app.app_setup import perform_initial_setup
 from src.app import app_config_holder
-
 
 logger = logging.getLogger(__name__)
 

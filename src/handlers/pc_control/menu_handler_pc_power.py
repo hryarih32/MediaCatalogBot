@@ -4,14 +4,13 @@ import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, Application
 
-
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_initialization import (
     load_menu_message_id,
     send_or_edit_universal_status_message
 
 )
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from .menu_handler_pc_root import display_pc_control_categories_menu
 from src.app.app_lifecycle import _bot_application_instance_for_shutdown as global_app_instance
 from src.bot.bot_text_utils import escape_md_v2
@@ -48,7 +47,13 @@ async def display_system_power_controls_menu(update: Update, context: ContextTyp
     if query:
         await query.answer()
     chat_id = update.effective_chat.id
+
     admin_chat_id_str = app_config_holder.get_chat_id_str()
+
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"PC power controls attempt by non-primary admin {chat_id}.")
+        return
 
     keyboard = [
         [InlineKeyboardButton(
@@ -141,6 +146,17 @@ async def handle_power_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
 
+    chat_id_for_status = query.message.chat.id if query.message else update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+
+    if not admin_chat_id_str or str(chat_id_for_status) != admin_chat_id_str:
+        logger.warning(
+            f"PC power action attempt by non-primary admin {chat_id_for_status}.")
+
+        await send_or_edit_universal_status_message(context.bot, chat_id_for_status, "⚠️ Access Denied for power action.", parse_mode=None)
+        return
+
     job_queue = get_job_queue_from_context_or_global(context)
     if not job_queue:
         logger.error("Job queue unavailable in handle_power_action.")
@@ -149,6 +165,7 @@ async def handle_power_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     callback_data = query.data
+
     chat_id = query.message.chat.id if query.message else update.effective_chat.id
     current_time = time.time()
     pending_action = context.chat_data.get('pc_pending_power_action')

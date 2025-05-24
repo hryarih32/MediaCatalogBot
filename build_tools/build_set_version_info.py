@@ -4,7 +4,6 @@ import os
 
 COMPANY_NAME = "Hamid R. Yari"
 
-
 VERSION_FILE = "../VERSION"
 LICENSE_FILE = "../LICENSE"
 

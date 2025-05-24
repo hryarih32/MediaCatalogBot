@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.bot.bot_text_utils import escape_md_v2, escape_for_inline_code
 import src.app.app_config_holder as app_config_holder
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_initialization import (
     send_or_edit_universal_status_message,
     show_or_edit_main_menu
@@ -26,6 +26,12 @@ async def plex_search_show_details_callback(update: Update, context: ContextType
     chat_id = update.effective_chat.id
     rating_key = query.data.split(
         CallbackData.CMD_PLEX_SEARCH_SHOW_DETAILS_PREFIX.value)[-1]
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(f"Plex details attempt by non-primary admin {chat_id}.")
+        return
+
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
@@ -132,6 +138,12 @@ async def plex_search_show_episode_details_callback(update: Update, context: Con
     chat_id = update.effective_chat.id
     episode_rating_key = query.data.replace(
         CallbackData.CMD_PLEX_SEARCH_SHOW_EPISODE_DETAILS_PREFIX.value, "")
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex episode details attempt by non-primary admin {chat_id}.")
+        return
 
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
@@ -286,6 +298,12 @@ async def plex_search_refresh_item_metadata_callback(update: Update, context: Co
         CallbackData.CMD_PLEX_SEARCH_REFRESH_ITEM_METADATA_PREFIX.value)[-1]
     item_type_refreshed = context.user_data.get(
         'plex_refresh_target_type', None)
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex refresh metadata attempt by non-primary admin {chat_id}.")
+        return
 
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)

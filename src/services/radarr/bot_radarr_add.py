@@ -6,7 +6,6 @@ from src.app.app_file_utils import get_search_results_file_path
 from src.services.radarr.bot_radarr_core import _radarr_request
 import src.app.app_config_holder as app_config_holder
 
-
 logger = logging.getLogger(__name__)
 
 MOVIE_RESULTS_FILE_NAME = 'movie_search_results.json'

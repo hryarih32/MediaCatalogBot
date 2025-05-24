@@ -6,7 +6,7 @@ from telegram.error import BadRequest
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_initialization import send_or_edit_universal_status_message
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_text_utils import escape_md_v2
 
 from src.services.plex.bot_plex_core import (
@@ -21,7 +21,6 @@ from src.handlers.plex.menu_handler_plex_library_server_tools import display_ple
 from src.handlers.plex.menu_handler_plex_main import _truncate_button_text_plex_lib as _truncate_button_text
 
 logger = logging.getLogger(__name__)
-
 
 PLEX_SERVER_TOOLS_SUB_MENU_TEXT_RAW = "🔧 Plex - Server Maintenance & Info"
 PLEX_EMPTY_TRASH_LIBRARY_LIST_TEXT_RAW = "🗑️ Plex Libraries - Empty Trash:"
@@ -40,6 +39,13 @@ async def display_plex_server_tools_sub_menu(update: Update, context: ContextTyp
                     f"Query answer failed in display_plex_server_tools_sub_menu: {e_ans}")
 
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex server tools sub menu attempt by non-primary admin {chat_id}.")
+        return
+
     keyboard = []
     menu_text_display = ""
 
@@ -109,6 +115,13 @@ async def handle_plex_server_action(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex server action attempt by non-primary admin {chat_id}.")
+        return
+
     callback_data_str = query.data
     result_message_raw = "An unknown error occurred."
     action_status_message_raw = None
@@ -205,6 +218,13 @@ async def plex_empty_trash_select_library_callback(update: Update, context: Cont
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex empty trash select lib attempt by non-primary admin {chat_id}.")
+        return
+
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
 
@@ -245,10 +265,12 @@ async def plex_empty_trash_select_library_callback(update: Update, context: Cont
             if "message is not modified" not in str(e).lower():
                 logger.error(
                     f"Error editing message for Plex Empty Trash list: {e}", exc_info=True)
+
             await display_plex_server_tools_sub_menu(update, context)
         except Exception as e:
             logger.error(
                 f"Error editing message for Plex Empty Trash list: {e}", exc_info=True)
+
             await display_plex_server_tools_sub_menu(update, context)
     else:
         logger.error(
@@ -260,6 +282,13 @@ async def plex_empty_trash_execute_callback(update: Update, context: ContextType
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex empty trash execute attempt by non-primary admin {chat_id}.")
+        return
+
     data_parts = query.data.split(
         CallbackData.CMD_PLEX_EMPTY_TRASH_EXECUTE_PREFIX.value)
     if len(data_parts) < 2:

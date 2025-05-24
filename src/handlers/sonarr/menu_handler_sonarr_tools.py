@@ -6,14 +6,12 @@ from telegram.error import BadRequest
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_initialization import send_or_edit_universal_status_message
-from src.config.config_definitions import CallbackData
-
+from src.bot.bot_callback_data import CallbackData
 
 from src.handlers.sonarr.menu_handler_sonarr_controls import display_sonarr_controls_menu
 from src.bot.bot_text_utils import escape_md_v2
 
 logger = logging.getLogger(__name__)
-
 
 SONARR_LIBRARY_MAINTENANCE_MENU_TEXT_RAW = "🎞️ Sonarr - Library Maintenance"
 
@@ -24,12 +22,17 @@ async def display_sonarr_library_maintenance_menu(update: Update, context: Conte
         await query.answer()
     chat_id = update.effective_chat.id
 
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Sonarr library maint attempt by non-primary admin {chat_id}.")
+        return
+
     if not app_config_holder.is_sonarr_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Sonarr API features are disabled.", parse_mode=None)
-        admin_chat_id_str = app_config_holder.get_chat_id_str()
-        if admin_chat_id_str:
 
-            await display_sonarr_controls_menu(update, context)
+        await display_sonarr_controls_menu(update, context)
         return
 
     keyboard = [

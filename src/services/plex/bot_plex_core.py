@@ -4,7 +4,6 @@ from plexapi.exceptions import PlexApiException, NotFound, BadRequest as PlexApi
 import requests
 import backoff
 
-
 logger = logging.getLogger(__name__)
 
 PLEX_URL_GLOBAL = None

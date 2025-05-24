@@ -1,118 +1,190 @@
-# Media Catalog Telegram Bot - Setup Instructions
+# Media Catalog Telegram Bot - Setup Instructions (v2.0.0)
 
 ---
 
+This guide will walk you through setting up the Media Catalog Telegram Bot on your system.
+
 ## Prerequisites
 
-*   **Python 3.12.9:**
-    *   Install from [python.org](https://www.python.org/downloads/release/python-3129/) or via package manager (e.g., `winget install -e --id Python.Python.3.12` on Windows).
-    *   **Important (Windows):** Ensure "Add Python 3.12 to PATH" is checked during installation.
+*   **Python 3.12.x:** (e.g., Python 3.12.9 recommended)
+    *   Download from the official Python website: [python.org/downloads/](https://www.python.org/downloads/)
+    *   During installation on Windows, **ensure you check the box that says "Add Python to PATH"**.
+    *   On Linux/macOS, Python 3.12 might be available via your system's package manager (e.g., `apt`, `yum`, `brew`).
+*   **Git (Recommended):**
+    *   For easily cloning the repository. Download from [git-scm.com/downloads](https://git-scm.com/downloads).
 
-*   **Git (Optional, but recommended for cloning the repository):**
-    *   Install from [git-scm.com](https://git-scm.com/downloads) or via package manager (e.g., `winget install -e --id Git.Git`).
+## Information to Gather Before Setup
 
-## 1. Get the Code
+You'll need the following details to configure the bot. It's helpful to have these ready:
 
-*   **Option A (Using Git):**
-    Open your terminal (Command Prompt, PowerShell, Bash, etc.) and run:
-    ```bash
-    git clone https://github.com/hryarih32/MediaCatalogBot.git
-    cd MediaCatalogBot
-    ```
+1.  **Telegram Bot Token:**
+    *   Open Telegram and search for `@BotFather`.
+    *   Send the `/newbot` command to `@BotFather`.
+    *   Follow the prompts to name your bot and choose a username for it (must end in `bot`, e.g., `MyMediaAssistantBot`).
+    *   `@BotFather` will provide you with an **API Token**. Copy this token carefully; it's like a password for your bot.
+2.  **Your Telegram Chat ID (for Primary Admin):**
+    *   This is your personal, numerical Telegram User ID.
+    *   Open Telegram and search for `@userinfobot`.
+    *   Send the `/start` command to `@userinfobot`. It will reply with your User ID. Note this down. This ID will be configured as the **Primary Administrator** of the bot.
+3.  **Plex Media Server Details (Optional):**
+    *   **Plex URL:** The full URL of your Plex server (e.g., `http://localhost:32400` if on the same machine, or `https://your-plex-domain.com` if hosted elsewhere).
+    *   **Plex Token (X-Plex-Token):**
+        *   Refer to the official Plex support article: [Finding an Authentication Token / X-Plex-Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/). This usually involves inspecting network requests while logged into your Plex Web App.
+    *   Download Plex Media Server from: [plex.tv/media-server-downloads/](https://www.plex.tv/media-server-downloads/)
+4.  **Radarr Details (Optional - for Movie Management):**
+    *   **Radarr API URL:** The full URL to your Radarr instance, including any base path if configured (e.g., `http://localhost:7878` or `http://your-server/radarr`).
+    *   **Radarr API Key:** In Radarr, go to `Settings` > `General` > `Security` section, and copy the `API Key`.
+    *   Download Radarr from: [radarr.video/#download](https://radarr.video/#download) or [Servarr Wiki - Installation](https://wiki.servarr.com/radarr/installation).
+5.  **Sonarr Details (Optional - for TV Show Management):**
+    *   **Sonarr API URL:** The full URL to your Sonarr instance (e.g., `http://localhost:8989` or `http://your-server/sonarr`).
+    *   **Sonarr API Key:** In Sonarr, go to `Settings` > `General` > `Security` section, and copy the `API Key`.
+    *   Download Sonarr from: [sonarr.tv/#download](https://sonarr.tv/#download) or [Servarr Wiki - Installation](https://wiki.servarr.com/sonarr/installation).
+6.  **AB Download Manager (ABDM) Details (Optional - for Direct Downloads, Primary Admin Only):**
+    *   **ABDM API Port:** To use this, ABDM's "Browser Integration" HTTP API must be enabled.
+        1.  Open your AB Download Manager application.
+        2.  Look for settings related to `Tools`, `Settings`, or `Preferences`.
+        3.  Find a section typically named "Browser Integration" or "API".
+        4.  Ensure the option "Enable browser integration HTTP API" (or similar wording) is **checked/enabled**.
+        5.  Note the **Port** number specified there (common default is `15151`).
+    *   Download AB Download Manager: Search for the official website or repository for your specific "AB Download Manager" (e.g., "AB Material Downloader" or other variants). *Always download software from trusted, official sources.*
+7.  **Application Launcher Paths (Optional):**
+    *   If you want to use the bot to launch applications like Plex, Sonarr, Radarr, Prowlarr, or your Torrent client, you'll need the **full executable path** to these programs on the machine where the bot will run.
+    *   Prowlarr: [prowlarr.com/#download](https://prowlarr.com/#download) or [Servarr Wiki - Installation](https://wiki.servarr.com/prowlarr/installation).
+    *   Torrent Client: e.g., qBittorrent, Deluge, Transmission. Get the path to its `.exe` (Windows) or executable file (Linux/macOS).
+
+## Setup Steps
+
+### 1. Get the Bot Code
+
+*   **Option A (Using Git - Recommended):**
+    1.  Open your terminal or command prompt.
+    2.  Navigate to the directory where you want to store the bot.
+    3.  Run: `git clone https://github.com/hryarih32/MediaCatalogBot.git`
+    4.  Change into the bot's directory: `cd MediaCatalogBot`
 
 *   **Option B (Download ZIP):**
-    1.  Download the project ZIP file from [https://github.com/hryarih32/MediaCatalogBot/archive/refs/heads/main.zip](https://github.com/hryarih32/MediaCatalogBot/archive/refs/heads/main.zip) (assuming 'main' is your default branch).
-    2.  Extract the ZIP file to a suitable folder on your computer.
-    3.  Open your terminal/command prompt and navigate into this project folder using the `cd` command:
-       ```bash
-       cd path/to/your/MediaCatalogBot-main # Or whatever the extracted folder is named
-       ```
+    1.  Go to the GitHub repository: [https://github.com/hryarih32/MediaCatalogBot](https://github.com/hryarih32/MediaCatalogBot)
+    2.  Click the "Code" button, then "Download ZIP".
+    3.  Extract the ZIP file to a folder on your computer.
+    4.  Open your terminal/command prompt and navigate into this extracted folder (e.g., `cd path/to/your/MediaCatalogBot-main`).
 
-## 2. Setup Python Virtual Environment & Install Dependencies
+### 2. Setup Python Virtual Environment & Install Dependencies
 
 *(Perform these commands from the project's root folder, e.g., `MediaCatalogBot/`)*
 
-1.  **Create Virtual Environment:**
+1.  **Create a Virtual Environment:**
+    This isolates the bot's Python packages from your system-wide Python.
     ```bash
     python -m venv venv
     ```
-    *(Use `py -3.12 -m venv venv` or full Python path if needed)*
+    *(If you have multiple Python versions, you might need to use `py -3.12 -m venv venv` or the full path to your Python 3.12 executable).*
 
-2.  **Activate Virtual Environment:**
-    *   Windows (Command Prompt): `.\venv\Scripts\activate.bat`
-    *   Windows (PowerShell): `.\venv\Scripts\Activate.ps1`
-        *(If PowerShell errors, run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` once as Admin)*
-    *   macOS/Linux: `source venv/bin/activate`
-    Your prompt should now show `(venv)`.
+2.  **Activate the Virtual Environment:**
+    *   **Windows (Command Prompt):** `.\venv\Scripts\activate.bat`
+    *   **Windows (PowerShell):** `.\venv\Scripts\Activate.ps1`
+        *(If PowerShell gives an error about execution policies, you might need to run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` once in an Administrator PowerShell and then try activating again).*
+    *   **macOS/Linux (Bash/Zsh):** `source venv/bin/activate`
+    Your command prompt should now show `(venv)` at the beginning, indicating the virtual environment is active.
 
 3.  **Install Required Libraries:**
-    With `(venv)` active:
+    With the `(venv)` active, install the dependencies listed in `requirements/requirements.txt`:
     ```bash
     pip install -r requirements/requirements.txt
     ```
-    *(Note the path to `requirements.txt`)*
 
-## 3. First Run & Configuration
+### 3. First Run & Configuration (Primary Administrator)
 
-The bot uses a GUI for initial setup. The active configuration will be stored in `data/config.py`.
+The bot uses a Graphical User Interface (GUI) for initial setup and subsequent configuration changes. The active configuration will be created and stored in `data/config.py`.
 
-1.  **Ensure `venv` is active.**
-2.  **Run the bot:**
-    *   **Windows (Recommended):** Double-click `Run Media Catalog Bot.bat` (located in the project root).
-    *   **Terminal (All OS):** From the project root, run `python MediaCatalog.py`.
+1.  **Ensure the virtual environment (`venv`) is active** in your terminal/command prompt.
+2.  **Run the bot for the first time:**
+    *   **Windows (Recommended):** In File Explorer, navigate to the project's root folder and double-click the `Run Media Catalog Bot.bat` file. This will run the bot in the background.
+    *   **Terminal (All Operating Systems):** From the project's root folder, run: `python MediaCatalog.py`
+3.  A **Configuration GUI** window should appear on the screen of the machine running the bot.
+    *   If the GUI doesn't appear, check the terminal output for any error messages. Also, a log file named `mediabot.log` will be created in a new `data/` subdirectory within your project folder – check this log for errors.
+4.  **Fill in the GUI fields** using the information you gathered earlier:
+    *   **Telegram Bot Token:** Paste the token from `@BotFather`.
+    *   **Telegram Chat ID:** Enter your numerical User ID (this will be the **Primary Admin**).
+    *   **Service Configurations (Plex, Radarr, Sonarr, ABDM):**
+        *   Check the "Enable" box for each service you want to use.
+        *   Enter the API URL, API Key/Token, and Port (for ABDM) accurately.
+        *   **Firewall Note:** If these services are running on different machines or in Docker containers, ensure your firewall(s) allow the machine running the bot to connect to them on their respective ports.
+    *   **Application Launchers & Custom Scripts (Optional):**
+        *   For each launcher or script you want, check "Enable".
+        *   Provide a "Button Name" (this text will appear on the Telegram button).
+        *   Provide the full "Executable Path" to the application or script on the machine hosting the bot.
+    *   **PC Control (Optional):**
+        *   Check "Enable PC Keyboard/System Controls" if you want to use features like media key simulation or remote shutdown/restart. The necessary Python libraries (`pyautogui`, `pycaw`) are included in `requirements.txt`.
+    *   **Logging Level (Optional):**
+        *   The default is "INFO". You can change it to "DEBUG" for more detailed logs during troubleshooting, or "WARNING" / "ERROR" for less verbose logging. Changes to this setting typically require a full bot restart to take effect.
+    *   **UI Behavior:**
+        *   `Max API Search Results`: Controls how many items are fetched from Radarr/Sonarr during a search.
+        *   `Items Per Page`: Controls how many items are shown per page in paginated menus (like search results or "My Requests").
+5.  **Save Configuration in the GUI:**
+    *   Click the "Save Configuration" button.
+    *   This will create (or update) the `data/config.py` file.
+    *   The bot will attempt to reload the new settings. **A full restart of the bot application is highly recommended after the very first setup, or if you change critical settings like `LOG_LEVEL`.** The application might exit after the first save to encourage this restart.
 
-3.  A **Configuration GUI** should appear. If not, check `data/mediabot.log` (created in `data/`) or terminal output for errors.
+*(Full user management for adding other Admins or Standard Users via the GUI is planned for a future update. For version 2.0.0, any user interacting with the bot who is not the Primary Admin will initially be treated as a Standard User for media request features).*
 
-4.  **Fill in GUI:**
-    *   **Telegram Bot Token:** From `@BotFather` (`/newbot`).
-    *   **Telegram Chat ID:** Your numerical User ID from `@userinfobot`.
-    *   **Service Configuration (Plex, Radarr, Sonarr):** Enable, provide API URL and Key/Token.
-        *   Ensure firewall allows connections if services are not on `localhost`.
-    *   **Launchers & Custom Scripts (Optional):** Configure paths and names.
-    *   **PC Control (Optional):** Enable (dependencies are in `requirements/requirements.txt`).
-    *   **Logging Level (Optional):** Default is "INFO". Changes require a bot restart.
+### 4. Running the Bot (After First Setup)
 
-5.  **Save Configuration in GUI:**
-    *   This creates/updates `data/config.py`.
-    *   The bot will attempt to reload settings. **A restart is recommended after the very first setup or if `LOG_LEVEL` changes.** The application will exit after the first save to encourage this.
-
-## 4. Running the Bot (After First Setup)
-
-1.  Navigate to the project root.
-2.  Activate `venv`.
-3.  Run:
-    *   Windows: `Run Media Catalog Bot.bat` (for background).
-    *   Terminal: `python MediaCatalog.py` (for console output).
-4.  Logs are in `data/mediabot.log`. Interact via Telegram (see `BOT_USAGE.md`).
+1.  Navigate to the project's root directory in your terminal or command prompt.
+2.  **Activate the virtual environment (`venv`)** as described in Step 2.2.
+3.  **Run the bot:**
+    *   **Windows:** Double-click `Run Media Catalog Bot.bat` for background operation.
+    *   **Terminal (All OS):** `python MediaCatalog.py` (you'll see log output directly in the terminal).
+4.  The bot should now connect to Telegram and be ready for commands.
+5.  Detailed logs are stored in `data/mediabot.log`.
+6.  Interact with your bot in Telegram using the commands and menus described in `BOT_USAGE.md`.
 
 ## Stopping the Bot
 
-*   **`Run Media Catalog Bot.bat`:** Use Task Manager to end `python.exe` running `MediaCatalog.py`.
-*   **`python MediaCatalog.py` (terminal):** Press `Ctrl+C`.
+*   If you used `Run Media Catalog Bot.bat` (Windows):
+    *   Open Task Manager (`Ctrl+Shift+Esc`).
+    *   Go to the "Details" or "Processes" tab.
+    *   Find the `python.exe` or `pythonw.exe` process that is running the `MediaCatalog.py` script (you might need to check the "Command Line" column if available).
+    *   Select it and click "End Task".
+*   If you ran `python MediaCatalog.py` in a terminal:
+    *   Press `Ctrl+C` in the terminal window where the bot is running.
 
 ## Optional: Creating a Standalone Executable (Windows .exe)
 
-This bundles Python and dependencies into a single `.exe`.
+This process bundles the Python interpreter and all necessary libraries into a single `.exe` file, making it easier to run on other Windows machines without a full Python setup (though they'll still need access to any configured network services).
 
 *   **Prerequisites:**
-    1.  Complete steps 1 and 2 (Get Code, Setup Venv & Install Dependencies). `pyinstaller` is installed from `requirements/requirements.txt`.
-    2.  Ensure `VERSION` and `LICENSE` are in the project root.
-    3.  (Optional) Update `COMPANY_NAME` in `build_tools/build_set_version_info.py`.
+    1.  Complete Steps 1 and 2 above (Get the Code, Setup Python Virtual Environment & Install Dependencies). The `pyinstaller` library is installed as part of `requirements/requirements.txt`.
+    2.  Ensure the `VERSION` file (containing `2.0.0` or your current version) and `LICENSE` file are present in the project's root directory.
+    3.  (Optional) You can update `COMPANY_NAME` in `build_tools/build_set_version_info.py` if desired before building.
 *   **Build Command:**
-    (From project root, with `venv` active)
-    ```bash
-    .\build_tools\build_application.bat
-    ```
+    1.  Ensure your virtual environment (`venv`) is active in your terminal/command prompt.
+    2.  Navigate to the project's root directory.
+    3.  Run the build script:
+        ```bash
+        .\build_tools\build_application.bat
+        ```
 *   **Output:**
-    *   Executable (e.g., `Media Catalog Telegram Bot.exe`) will be in `bin/`.
-    *   On first run on a new machine, it may create a default `config.py.default` in the `data/` directory (if `data/` doesn't exist, it will try to create it). You would then copy `config.py.default` to `config.py` inside `data/` and edit it, or let the GUI guide you on the next run if `data/config.py` is invalid/missing.
+    *   The standalone executable (e.g., `Media Catalog Telegram Bot.exe`) will be created in a new `bin/` directory within your project root.
+    *   When running this `.exe` on a new machine for the first time (or if the `data/` directory is missing), it will attempt to create a `data/` directory and a default `config.py.default` file inside it. You would then:
+        1.  Copy `data/config.py.default` to `data/config.py`.
+        2.  Run the executable again. The Configuration GUI should appear, allowing you to set up your actual `data/config.py`.
 
-## Troubleshooting
+## Troubleshooting Common Issues
 
-*   **Bot doesn't start / Config errors:**
+*   **Bot doesn't start / Configuration errors:**
+    *   Always ensure your virtual environment (`venv`) is activated before running the bot.
+    *   Double-check that `data/config.py` contains the correct `TELEGRAM_BOT_TOKEN` and your `CHAT_ID`.
+    *   Review `data/mediabot.log` for detailed error messages.
+*   **`pip install` errors:**
     *   Ensure `venv` is active.
-    *   Check `data/config.py` has correct Token and Chat ID.
-    *   Review `data/mediabot.log`.
-*   **`pip install` errors:** Check `venv` active, internet.
-*   **API Service Issues:** Verify URLs/Keys in `data/config.py`, firewall, network.
-*   **PC Control Issues:** Check `PC_CONTROL_ENABLED` in `data/config.py`, `pyautogui`/`pycaw` install.
+    *   Check your internet connection.
+    *   You might need to install Python development tools or C++ build tools if a package fails to compile (though this is less common with the listed dependencies).
+*   **API Service Integration Issues (Plex, Radarr, Sonarr, ABDM):**
+    *   **Verify URLs, API Keys/Tokens, and Ports:** Triple-check these values in your `data/config.py` (or via the `/settings` GUI).
+    *   **Service Running:** Ensure the respective applications (Plex server, Radarr, Sonarr, ABDM) are actually running on their configured hosts and ports.
+    *   **Firewall:** Make sure no firewall (Windows Firewall, router firewall, or other security software) is blocking the bot's outgoing connections to these services, or incoming connections if a service requires it (though this bot primarily makes outgoing calls).
+    *   **Network Accessibility:** If services are on a different machine or Docker, ensure the bot's machine can reach them over the network (e.g., try pinging the host or accessing the service's web UI from the bot's machine).
+    *   **ABDM API:** Specifically for AB Download Manager, ensure the "Enable browser integration HTTP API" option is checked in its settings, and the port matches your bot config.
+*   **PC Control Issues:**
+    *   Confirm `PC_CONTROL_ENABLED = True` in `data/config.py`.
+    *   Ensure the `pyautogui` and `pycaw` (for advanced volume) libraries were installed correctly from `requirements.txt`. On some Linux systems, `pyautogui` may have additional X11 dependencies.

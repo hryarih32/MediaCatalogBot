@@ -7,7 +7,7 @@ from telegram.error import BadRequest
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_initialization import send_or_edit_universal_status_message
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.services.sonarr.bot_sonarr_manage import get_wanted_missing_episodes, get_sonarr_queue
 from src.services.sonarr.bot_sonarr_core import get_all_series_ids_and_titles_cached
 
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 SONARR_WANTED_EPISODES_MENU_TEXT_TEMPLATE_RAW = "🎯 Sonarr - Wanted Episodes (Page {current_page}/{total_pages})"
 SONARR_QUEUE_MENU_TEXT_TEMPLATE_RAW = "📥 Sonarr - Download Queue (Page {current_page}/{total_pages})"
+
 DEFAULT_PAGE_SIZE = 5
 
 
@@ -26,6 +27,13 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
     if query:
         await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Sonarr wanted episodes attempt by non-primary admin {chat_id}.")
+        return
+
     is_refresh_call = query and query.data == CallbackData.CMD_SONARR_WANTED_REFRESH.value
     if page == 1 or is_refresh_call:
         logger.debug(
@@ -65,6 +73,7 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
                 logger.warning(
                     f"Skipping non-dict item in Sonarr wanted episodes: {ep_item}")
                 continue
+
             series_title_raw = ep_item.get('seriesTitle', 'Unknown Series')
             ep_title_raw = ep_item.get(
                 'title', f"Ep {ep_item.get('episodeNumber', '?')}")
@@ -132,6 +141,12 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
     if query:
         await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(f"Sonarr queue attempt by non-primary admin {chat_id}.")
+        return
+
     is_refresh_call = query and query.data == CallbackData.CMD_SONARR_QUEUE_REFRESH.value
 
     queue_data = get_sonarr_queue(page=page, page_size=DEFAULT_PAGE_SIZE)
@@ -166,21 +181,27 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
                 logger.warning(
                     f"Skipping non-dict item in Sonarr queue: {item}")
                 continue
+
             series_title_raw = item.get('seriesTitle', 'Unknown Series')
             ep_info = item.get('episode', {})
             status_raw = item.get('status', 'N/A')
             season_num_raw = ep_info.get(
+
                 'seasonNumber', item.get('seasonNumber', ''))
             ep_num_raw = ep_info.get(
                 'episodeNumber', item.get('episodeNumber', ''))
             progress_value = item.get(
+
                 'progress', item.get('totalProgress', 0.0))
             progress_percent_raw = f"{progress_value:.1f}%"
             item_id_for_actions = str(item.get('id'))
-            episode_id_for_search = str(ep_info.get('id', '0'))
+            episode_id_for_search = str(ep_info.get(
+                'id', '0'))
+
             button_display_title = f"{series_title_raw} - S{season_num_raw:02d}E{ep_num_raw:02d}" if season_num_raw != '' and ep_num_raw != '' else series_title_raw
             if len(button_display_title) > 30:
                 button_display_title = button_display_title[:27] + "..."
+
             display_text = f"{button_display_title} ({status_raw} - {progress_percent_raw})"
             if len(display_text) > 50:
                 display_text = display_text[:47] + "..."

@@ -3,11 +3,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
-
 import src.app.app_config_holder as app_config_holder
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_initialization import send_or_edit_universal_status_message, load_menu_message_id, show_or_edit_main_menu
-
 
 from src.bot.bot_text_utils import escape_md_v2
 

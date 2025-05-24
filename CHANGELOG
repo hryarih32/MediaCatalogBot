@@ -1,5 +1,46 @@
 # Changelog
 
+## [2.0.0] - 2025-05-24 
+
+### Added
+
+-   **Multi-User Roles & Request System:**
+    -   Introduced `ADMIN` and `STANDARD_USER` roles. The primary `CHAT_ID` in `config.py` is the initial/main `ADMIN`.
+    -   `STANDARD_USER`s can now "Request Movie" and "Request TV Show" via search.
+    -   `STANDARD_USER`s have a "📋 My Requests" menu to view the status (Pending, Approved, Rejected) of their submissions.
+    -   `ADMIN`s have a new "📮 Admin Requests (X)" menu showing a dynamic count of pending user requests.
+    -   `ADMIN`s can view pending request details and "✅ Approve" or "❌ Reject" them.
+        -   Approving a request initiates the standard Radarr/Sonarr add flow for the admin (choice of default or custom settings).
+        -   Rejecting a request prompts the admin for an optional reason.
+    -   `ADMIN`s have a "📜 Request History" submenu to view processed (approved/rejected/add_failed) requests.
+    -   Request data is stored in `data/requests.json`.
+-   **User-Specific Message Persistence:** Main menu and universal status message IDs are now stored per user, allowing for concurrent individual sessions. (Interim: files named `msg_id_menu_CHATID.txt`, etc. To be moved to `bot_state.json` in Phase 6).
+
+### Changed
+
+-   **ABDM Download Restriction:** "📥 Add Download (ABDM)" feature is now strictly for the primary `ADMIN` (defined by `CHAT_ID` in `config.py`).
+-   **Admin Notifications for Requests:** Direct message notifications to admins for new user requests have been removed. Admins now rely on the dynamic count on the "Admin Requests (X)" button in their main menu.
+-   **User Notifications for Requests:** Users are no longer directly messaged when their request is approved/rejected by an admin. They must check their "My Requests" page for status updates. (This was a specific change request during development).
+-   **CallbackData Relocation:** The `CallbackData` enum was moved from `src/config/config_definitions.py` to `src/bot/bot_callback_data.py` in Phase 1 to prevent it from being written into the user's `config.py`.
+-   Internal logic for Radarr/Sonarr add flows (`menu_handler_radarr_add_flow.py`, `menu_handler_sonarr_add_flow.py`) updated to handle both direct admin additions and additions originating from approved user requests.
+-   Main menu construction (`menu_handler_main_builder.py`) now dynamically adapts button text ("Add" vs. "Request") and visibility based on user role.
+
+### Fixed
+
+-   Multiple MarkdownV2 parsing errors related to special characters (parentheses, hyphens, periods) in menu text and status messages have been addressed.
+-   Corrected import paths and function call logic for initiating Radarr/Sonarr add flows after an admin approves a user request.
+-   Ensured admin's "rejection reason" message is deleted after input, similar to search query messages.
+
+### Known Issues / Future Work (Post Phase 3 / For Later Phases)
+
+-   User management (adding/removing users, assigning roles) is not yet implemented via the bot/GUI (Slated for Phase 4 GUI).
+    -   Currently, `get_user_role` in `app_config_holder.py` treats the primary `CHAT_ID` as `ADMIN` and all other interacting users as `STANDARD_USER` for menu display purposes.
+-   Full implementation of `REQUEST_ACCESS` flow for unknown users is pending (Phase 10).
+-   Robust, atomic state management for `requests.json` and `bot_state.json` (Phase 6).
+-   Detailed view for items in "My Requests" for standard users.
+-   GUI enhancements (tabbed interface, consolidated launchers, user management tab - Phase 4).
+-   Full Plex controls for standard users (currently admin-only).
+
 ## [1.1.0] - 2025-05-23
 
 ### Added

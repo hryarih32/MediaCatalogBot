@@ -4,13 +4,12 @@ from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
 import src.app.app_config_holder as app_config_holder
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_initialization import send_or_edit_universal_status_message
 from src.bot.bot_message_persistence import load_menu_message_id
 
 from src.services.plex.bot_plex_library import get_plex_libraries, trigger_library_scan, trigger_metadata_refresh
 from src.services.plex.bot_plex_now_playing import get_now_playing_structured, stop_plex_stream
-
 
 from src.handlers.plex.menu_handler_plex_controls import display_plex_controls_menu
 from src.handlers.plex.menu_handler_plex_library_server_tools import display_plex_library_server_tools_menu
@@ -48,6 +47,13 @@ async def plex_now_playing_callback(update: Update, context: ContextTypes.DEFAUL
             await query.answer()
 
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex now playing attempt by non-primary admin {chat_id}.")
+        return
+
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
@@ -111,6 +117,15 @@ async def plex_stop_stream_callback(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     await query.answer(text="Processing stop command...")
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex stop stream attempt by non-primary admin {chat_id}.")
+
+        await query.answer("Access Denied.", show_alert=True)
+        return
+
     full_identifier_payload = query.data.replace(
         CallbackData.CMD_PLEX_STOP_STREAM_PREFIX.value, "")
     session_id_to_stop, player_id_to_stop = None, None
@@ -120,6 +135,7 @@ async def plex_stop_stream_callback(update: Update, context: ContextTypes.DEFAUL
             player_id_to_stop = part.replace("player_", "")
         elif part.startswith("session_"):
             session_id_to_stop = part.replace("session_", "")
+
         elif not ("player_" in part or "session_" in part) and part:
             session_id_to_stop = part
 
@@ -151,6 +167,7 @@ async def plex_stop_stream_callback(update: Update, context: ContextTypes.DEFAUL
     alert_text_raw = alert_text_raw.replace('⚠️', '').replace('✅', '').strip()
     if not alert_text_raw:
         alert_text_raw = "Plex: Unknown status for stop command."
+
     show_alert_flag = "✅" not in stop_result_v2_escaped
     alert_text_display = alert_text_raw[:190] + \
         "..." if len(alert_text_raw) > 190 else alert_text_raw
@@ -161,6 +178,13 @@ async def plex_scan_libraries_select_callback(update: Update, context: ContextTy
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex scan select attempt by non-primary admin {chat_id}.")
+        return
+
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         await display_plex_library_server_tools_menu(update, context, called_internally=True)
@@ -200,10 +224,12 @@ async def plex_scan_libraries_select_callback(update: Update, context: ContextTy
             if "message is not modified" not in str(e).lower():
                 logger.error(
                     f"Error editing message for Plex scan list: {e}", exc_info=True)
+
             await display_plex_library_server_tools_menu(update, context, called_internally=True)
         except Exception as e:
             logger.error(
                 f"Error editing message for Plex scan list: {e}", exc_info=True)
+
             await display_plex_library_server_tools_menu(update, context, called_internally=True)
     else:
         logger.error(
@@ -215,6 +241,13 @@ async def plex_scan_library_execute_callback(update: Update, context: ContextTyp
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex scan execute attempt by non-primary admin {chat_id}.")
+        return
+
     data_parts = query.data.split(
         CallbackData.CMD_PLEX_SCAN_LIBRARY_PREFIX.value)
     if len(data_parts) < 2:
@@ -238,6 +271,13 @@ async def plex_refresh_library_metadata_select_callback(update: Update, context:
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex refresh select attempt by non-primary admin {chat_id}.")
+        return
+
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         await display_plex_library_server_tools_menu(update, context, called_internally=True)
@@ -278,10 +318,12 @@ async def plex_refresh_library_metadata_select_callback(update: Update, context:
             if "message is not modified" not in str(e).lower():
                 logger.error(
                     f"Error editing message for Plex refresh list: {e}", exc_info=True)
+
             await display_plex_library_server_tools_menu(update, context, called_internally=True)
         except Exception as e:
             logger.error(
                 f"Error editing message for Plex refresh list: {e}", exc_info=True)
+
             await display_plex_library_server_tools_menu(update, context, called_internally=True)
     else:
         logger.error(
@@ -293,6 +335,13 @@ async def plex_refresh_library_metadata_execute_callback(update: Update, context
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex refresh execute attempt by non-primary admin {chat_id}.")
+        return
+
     data_parts = query.data.split(
         CallbackData.CMD_PLEX_REFRESH_LIBRARY_METADATA_PREFIX.value)
     if len(data_parts) < 2:

@@ -5,12 +5,23 @@ from src.app.app_file_utils import get_data_storage_path
 
 logger = logging.getLogger(__name__)
 
-MENU_ID_FILE_NAME = "msg_id_menu.txt"
-UNIVERSAL_MESSAGE_ID_FILE_NAME = "msg_id_universal_status.txt"
+MENU_ID_FILE_PREFIX = "msg_id_menu_"
+
+UNIVERSAL_MESSAGE_ID_FILE_PREFIX = "msg_id_universal_status_"
 
 
-def get_app_data_file_path(filename: str) -> str:
+def get_user_specific_data_file_path(base_prefix: str, chat_id_str: str) -> str:
+    """Generates a user-specific filename."""
+    if not chat_id_str:
+        logger.error(
+            "Chat ID is empty, cannot generate user-specific file path.")
 
+        return os.path.join(get_data_storage_path(), f"{base_prefix}unknown_user.txt")
+
+    safe_chat_id_suffix = chat_id_str.replace(
+        '-', 'neg')
+
+    filename = f"{base_prefix}{safe_chat_id_suffix}.txt"
     data_storage_path = get_data_storage_path()
     return os.path.join(data_storage_path, filename)
 
@@ -27,20 +38,19 @@ def _load_id_from_file_generic(filename_key_for_log: str, filepath: str) -> int 
                 else:
                     logger.warning(
                         f"Content of {filepath} ('{content}') (key: {filename_key_for_log}) is not a valid ID. Deleting file.")
-
-                    if filename_key_for_log == MENU_ID_FILE_NAME:
-                        delete_menu_id_file()
-                    elif filename_key_for_log == UNIVERSAL_MESSAGE_ID_FILE_NAME:
-                        delete_universal_status_message_id_file()
+                    try:
+                        os.remove(filepath)
+                    except OSError as e_del:
+                        logger.error(
+                            f"Could not delete corrupt file {filepath}: {e_del}")
         except Exception as e:
             logger.warning(
-                f"Could not read or parse ID from {filepath} (key: {filename_key_for_log}): {e}", exc_info=True)
+                f"Could not read or parse ID from {filepath} (key: {filename_key_for_log}): {e}", exc_info=False)
     return None
 
 
 def _save_id_to_file_generic(message_id: int, filename_key_for_log: str, filepath: str):
     try:
-
         with open(filepath, 'w') as f:
             f.write(str(message_id))
         logger.info(
@@ -61,64 +71,62 @@ def _delete_file_generic(filename_key_for_log: str, filepath: str):
                 f"Could not delete file {filepath} (key: {filename_key_for_log}): {e}", exc_info=True)
 
 
-def load_menu_message_id() -> int | None:
-    return _load_id_from_file_generic(MENU_ID_FILE_NAME, get_app_data_file_path(MENU_ID_FILE_NAME))
+def load_menu_message_id(chat_id_str: str) -> int | None:
+    filepath = get_user_specific_data_file_path(
+        MENU_ID_FILE_PREFIX, chat_id_str)
+    return _load_id_from_file_generic(f"{MENU_ID_FILE_PREFIX}{chat_id_str}", filepath)
 
 
-def save_menu_message_id(message_id: int):
+def save_menu_message_id(message_id: int, chat_id_str: str):
+    filepath = get_user_specific_data_file_path(
+        MENU_ID_FILE_PREFIX, chat_id_str)
     _save_id_to_file_generic(
-        message_id, MENU_ID_FILE_NAME, get_app_data_file_path(MENU_ID_FILE_NAME))
+        message_id, f"{MENU_ID_FILE_PREFIX}{chat_id_str}", filepath)
 
 
-def delete_menu_id_file():
+def delete_menu_id_file(chat_id_str: str):
+    filepath = get_user_specific_data_file_path(
+        MENU_ID_FILE_PREFIX, chat_id_str)
     _delete_file_generic(
-        MENU_ID_FILE_NAME, get_app_data_file_path(MENU_ID_FILE_NAME))
+        f"{MENU_ID_FILE_PREFIX}{chat_id_str}", filepath)
 
 
-def load_universal_status_message_id() -> int | None:
-    return _load_id_from_file_generic(UNIVERSAL_MESSAGE_ID_FILE_NAME, get_app_data_file_path(UNIVERSAL_MESSAGE_ID_FILE_NAME))
+def load_universal_status_message_id(chat_id_str: str) -> int | None:
+    filepath = get_user_specific_data_file_path(
+        UNIVERSAL_MESSAGE_ID_FILE_PREFIX, chat_id_str)
+    return _load_id_from_file_generic(f"{UNIVERSAL_MESSAGE_ID_FILE_PREFIX}{chat_id_str}", filepath)
 
 
-def save_universal_status_message_id(message_id: int):
-    _save_id_to_file_generic(message_id, UNIVERSAL_MESSAGE_ID_FILE_NAME,
-                             get_app_data_file_path(UNIVERSAL_MESSAGE_ID_FILE_NAME))
+def save_universal_status_message_id(message_id: int, chat_id_str: str):
+    filepath = get_user_specific_data_file_path(
+        UNIVERSAL_MESSAGE_ID_FILE_PREFIX, chat_id_str)
+    _save_id_to_file_generic(message_id, f"{UNIVERSAL_MESSAGE_ID_FILE_PREFIX}{chat_id_str}",
+                             filepath)
 
 
-def delete_universal_status_message_id_file():
-    _delete_file_generic(UNIVERSAL_MESSAGE_ID_FILE_NAME,
-                         get_app_data_file_path(UNIVERSAL_MESSAGE_ID_FILE_NAME))
+def delete_universal_status_message_id_file(chat_id_str: str):
+    filepath = get_user_specific_data_file_path(
+        UNIVERSAL_MESSAGE_ID_FILE_PREFIX, chat_id_str)
+    _delete_file_generic(f"{UNIVERSAL_MESSAGE_ID_FILE_PREFIX}{chat_id_str}",
+                         filepath)
 
 
 def load_message_id_from_file(filename_key: str) -> int | None:
     logger.warning(
-        f"Deprecated load_message_id_from_file called for {filename_key}. Use specific load functions.")
-    if filename_key == MENU_ID_FILE_NAME:
-        return load_menu_message_id()
-    if filename_key == UNIVERSAL_MESSAGE_ID_FILE_NAME:
-        return load_universal_status_message_id()
-    return _load_id_from_file_generic(filename_key, get_app_data_file_path(filename_key))
+        f"Deprecated load_message_id_from_file called for {filename_key}. Use user-specific load functions.")
+
+    return None
 
 
 def save_message_id_to_file(message_id: int, filename_key: str):
     logger.warning(
-        f"Deprecated save_message_id_to_file called for {filename_key}. Use specific save functions.")
-    if filename_key == MENU_ID_FILE_NAME:
-        save_menu_message_id(message_id)
-        return
-    if filename_key == UNIVERSAL_MESSAGE_ID_FILE_NAME:
-        save_universal_status_message_id(message_id)
-        return
-    _save_id_to_file_generic(message_id, filename_key,
-                             get_app_data_file_path(filename_key))
+        f"Deprecated save_message_id_to_file called for {filename_key}. Use user-specific save functions.")
+
+    return
 
 
 def delete_message_id_file(filename_key: str):
     logger.warning(
-        f"Deprecated delete_message_id_file called for {filename_key}. Use specific delete functions.")
-    if filename_key == MENU_ID_FILE_NAME:
-        delete_menu_id_file()
-        return
-    if filename_key == UNIVERSAL_MESSAGE_ID_FILE_NAME:
-        delete_universal_status_message_id_file()
-        return
-    _delete_file_generic(filename_key, get_app_data_file_path(filename_key))
+        f"Deprecated delete_message_id_file (singular) called for {filename_key}. Use specific delete functions with chat_id.")
+
+    return

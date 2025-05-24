@@ -10,8 +10,7 @@ from src.config.config_definitions import (
     CONFIG_KEYS_PLEX_LAUNCHER, CONFIG_KEYS_SONARR_LAUNCHER, CONFIG_KEYS_RADARR_LAUNCHER,
     CONFIG_KEYS_PROWLARR_LAUNCHER, CONFIG_KEYS_TORRENT_LAUNCHER, CONFIG_KEYS_ABDM_LAUNCHER,
     ALL_USER_CONFIG_KEYS, CONFIG_FIELD_DEFINITIONS, CONFIG_KEYS_ABDM,
-    CONFIG_KEYS_LOGGING, LOG_LEVEL_OPTIONS,
-    CallbackData as BotCallbackDataToWrite
+    CONFIG_KEYS_LOGGING, LOG_LEVEL_OPTIONS
 )
 
 from .app_file_utils import get_ico_file_path
@@ -63,10 +62,13 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         else:
             delta = int(-1 * (event.delta / 120))
         canvas.yview_scroll(delta, "units")
+
     for widget_to_bind_scroll in [canvas, scrollable_frame, root]:
         widget_to_bind_scroll.bind_all("<MouseWheel>", _on_mousewheel)
-        widget_to_bind_scroll.bind_all("<Button-4>", _on_mousewheel)
-        widget_to_bind_scroll.bind_all("<Button-5>", _on_mousewheel)
+        widget_to_bind_scroll.bind_all(
+            "<Button-4>", _on_mousewheel)
+        widget_to_bind_scroll.bind_all(
+            "<Button-5>", _on_mousewheel)
 
     entries_vars = {}
     widgets_map = {}
@@ -85,6 +87,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         def toggle_fields():
             is_enabled = entries_vars[check_var_key].get()
             widget_state = tk.NORMAL if is_enabled else tk.DISABLED
+
             label_fg_color = "black" if is_enabled else "grey"
             for dep_key in dependent_keys_list:
                 if dep_key in widgets_map:
@@ -121,7 +124,8 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         frame_lf.grid_columnconfigure(0, weight=1)
         current_internal_row = 0
         dependent_detail_keys = []
-        associated_label_keys = []
+        associated_label_keys_for_frame = []
+
         if frame_data["enable_key"]:
             enable_key = frame_data["enable_key"]
             enable_def = CONFIG_FIELD_DEFINITIONS[enable_key]
@@ -134,13 +138,15 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                               column=0, sticky=tk.W, pady=(0, 5), padx=5)
             widgets_map[enable_key] = [check_button]
             current_internal_row += 1
+
         for key in frame_data["keys"]:
             definition = CONFIG_FIELD_DEFINITIONS[key]
             label_widget = ttk.Label(frame_lf, text=definition["label"])
             label_widget.grid(row=current_internal_row,
                               column=0, sticky=tk.W, pady=(5, 0), padx=5)
             label_widgets_map[key] = label_widget
-            associated_label_keys.append(key)
+            associated_label_keys_for_frame.append(
+                key)
             current_internal_row += 1
             entry_var = tk.StringVar(value=initial_values.get(
                 key, definition.get("default", "")))
@@ -156,9 +162,14 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
             widgets_map.setdefault(key, []).append(entry)
             dependent_detail_keys.append(key)
             current_internal_row += 1
+
         if frame_data["enable_key"]:
             toggle_func = make_toggle_dependent_fields_func(
-                frame_data["enable_key"], dependent_detail_keys, associated_labels_keys=associated_label_keys)
+                frame_data["enable_key"],
+                dependent_detail_keys,
+
+                associated_labels_keys=associated_label_keys_for_frame
+            )
             widgets_map[frame_data["enable_key"]
                         ][0].config(command=toggle_func)
             toggle_func()
@@ -218,12 +229,22 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     launchers_main_lf.grid_columnconfigure(0, weight=0)
     launchers_main_lf.grid_columnconfigure(1, weight=1)
     launchers_main_lf.grid_columnconfigure(2, weight=1)
-    launcher_configs = [{"title": "Plex Media Server", "keys": CONFIG_KEYS_PLEX_LAUNCHER}, {"title": "Sonarr", "keys": CONFIG_KEYS_SONARR_LAUNCHER}, {
-        "title": "Radarr", "keys": CONFIG_KEYS_RADARR_LAUNCHER}, {"title": "Prowlarr", "keys": CONFIG_KEYS_PROWLARR_LAUNCHER}, {"title": "Torrent Client", "keys": CONFIG_KEYS_TORRENT_LAUNCHER},
-        {"title": "AB Download Manager", "keys": CONFIG_KEYS_ABDM_LAUNCHER},]
+
+    launcher_configs = [{"title": "Plex Media Server", "keys": CONFIG_KEYS_PLEX_LAUNCHER},
+                        {"title": "Sonarr", "keys": CONFIG_KEYS_SONARR_LAUNCHER},
+                        {"title": "Radarr", "keys": CONFIG_KEYS_RADARR_LAUNCHER},
+                        {"title": "Prowlarr", "keys": CONFIG_KEYS_PROWLARR_LAUNCHER},
+                        {"title": "Torrent Client",
+                            "keys": CONFIG_KEYS_TORRENT_LAUNCHER},
+                        {"title": "AB Download Manager", "keys": CONFIG_KEYS_ABDM_LAUNCHER},]
+
     current_launcher_row_internal = 0
     for launcher_info in launcher_configs:
         enabled_key, name_key, path_key = launcher_info["keys"]
+
+        launcher_specific_associated_labels = [
+            name_key, path_key]
+
         enable_def = CONFIG_FIELD_DEFINITIONS[enabled_key]
         enabled_var = tk.BooleanVar(value=initial_values.get(
             enabled_key, enable_def.get("default", False)))
@@ -233,12 +254,21 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         enable_check.grid(row=current_launcher_row_internal,
                           column=0, sticky=tk.W, pady=(5, 0), padx=5)
         widgets_map.setdefault(enabled_key, []).append(enable_check)
+
         name_def = CONFIG_FIELD_DEFINITIONS[name_key]
         name_label = ttk.Label(launchers_main_lf, text=name_def["label"])
         name_label.grid(row=current_launcher_row_internal,
                         column=1, sticky=tk.W, pady=(5, 0), padx=(10, 2))
         label_widgets_map[name_key] = name_label
+
+        path_def = CONFIG_FIELD_DEFINITIONS[path_key]
+        path_label = ttk.Label(launchers_main_lf, text=path_def["label"])
+        path_label.grid(row=current_launcher_row_internal,
+                        column=2, sticky=tk.W, pady=(5, 0), padx=(10, 2))
+        label_widgets_map[path_key] = path_label
+
         current_launcher_row_internal += 1
+
         name_var = tk.StringVar(value=initial_values.get(
             name_key, name_def.get("default", f"Launch {launcher_info['title']}")))
         name_entry = ttk.Entry(
@@ -247,11 +277,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                         sticky=(tk.W, tk.E), pady=(0, 5), padx=(20, 5))
         entries_vars[name_key] = name_var
         widgets_map.setdefault(name_key, []).append(name_entry)
-        path_def = CONFIG_FIELD_DEFINITIONS[path_key]
-        path_label = ttk.Label(launchers_main_lf, text=path_def["label"])
-        path_label.grid(row=current_launcher_row_internal-1,
-                        column=2, sticky=tk.W, pady=(5, 0), padx=(10, 2))
-        label_widgets_map[path_key] = path_label
+
         path_var = tk.StringVar(value=initial_values.get(
             path_key, path_def.get("default", "")))
         path_entry_frame = ttk.Frame(launchers_main_lf)
@@ -277,13 +303,18 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         entries_vars[path_key] = path_var
         widgets_map.setdefault(path_key, []).extend(
             [path_entry, browse_button])
+
         if launcher_info != launcher_configs[-1]:
             sep = ttk.Separator(launchers_main_lf, orient='horizontal')
             sep.grid(row=current_launcher_row_internal + 1, column=0,
                      columnspan=3, sticky='ew', pady=10, padx=5)
+
         current_launcher_row_internal += 2
+
         launcher_toggle_func = make_toggle_dependent_fields_func(
-            enabled_key, [name_key, path_key], associated_labels_keys=[name_key, path_key])
+            enabled_key, [name_key, path_key],
+            associated_labels_keys=launcher_specific_associated_labels
+        )
         enable_check.config(command=launcher_toggle_func)
         launcher_toggle_func()
 
@@ -294,13 +325,19 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     current_main_row += 1
     scripts_main_lf.grid_columnconfigure(0, weight=0)
     scripts_main_lf.grid_columnconfigure(1, weight=1)
-    scripts_main_lf.grid_columnconfigure(2, weight=2)
+    scripts_main_lf.grid_columnconfigure(
+        2, weight=2)
     script_keys_list = [CONFIG_KEYS_SCRIPT_1,
                         CONFIG_KEYS_SCRIPT_2, CONFIG_KEYS_SCRIPT_3]
+
     current_script_row_internal = 0
     for script_idx, script_keys_group in enumerate(script_keys_list):
         enabled_key, name_key, path_key = script_keys_group
         script_title = f"Custom Script {script_idx + 1}"
+
+        script_specific_associated_labels = [
+            name_key, path_key]
+
         enable_def = CONFIG_FIELD_DEFINITIONS[enabled_key]
         script_enabled_var = tk.BooleanVar(value=initial_values.get(
             enabled_key, enable_def.get("default", False)))
@@ -310,12 +347,21 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         script_check.grid(row=current_script_row_internal,
                           column=0, sticky=tk.W, pady=(5, 0), padx=5)
         widgets_map.setdefault(enabled_key, []).append(script_check)
+
         name_def = CONFIG_FIELD_DEFINITIONS[name_key]
         name_label = ttk.Label(scripts_main_lf, text=name_def["label"])
         name_label.grid(row=current_script_row_internal, column=1,
                         sticky=tk.W, pady=(5, 0), padx=(10, 2))
         label_widgets_map[name_key] = name_label
+
+        path_def = CONFIG_FIELD_DEFINITIONS[path_key]
+        path_label = ttk.Label(scripts_main_lf, text=path_def["label"])
+        path_label.grid(row=current_script_row_internal, column=2,
+                        sticky=tk.W, pady=(5, 0), padx=(10, 2))
+        label_widgets_map[path_key] = path_label
+
         current_script_row_internal += 1
+
         name_var = tk.StringVar(value=initial_values.get(
             name_key, name_def.get("default", f"Script {script_idx+1}")))
         name_entry = ttk.Entry(scripts_main_lf, width=25,
@@ -324,19 +370,17 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                         sticky=(tk.W, tk.E), pady=(0, 5), padx=(20, 5))
         entries_vars[name_key] = name_var
         widgets_map.setdefault(name_key, []).append(name_entry)
-        path_def = CONFIG_FIELD_DEFINITIONS[path_key]
-        path_label = ttk.Label(scripts_main_lf, text=path_def["label"])
-        path_label.grid(row=current_script_row_internal-1,
-                        column=2, sticky=tk.W, pady=(5, 0), padx=(10, 2))
-        label_widgets_map[path_key] = path_label
+
         path_var = tk.StringVar(value=initial_values.get(
             path_key, path_def.get("default", "")))
-        path_entry_frame = ttk.Frame(scripts_main_lf)
-        path_entry_frame.grid(row=current_script_row_internal, column=2, sticky=(
+        path_entry_frame_script = ttk.Frame(
+            scripts_main_lf)
+        path_entry_frame_script.grid(row=current_script_row_internal, column=2, sticky=(
             tk.W, tk.E), pady=(0, 5), padx=(20, 5))
-        path_entry_frame.grid_columnconfigure(0, weight=1)
-        path_entry = ttk.Entry(path_entry_frame, textvariable=path_var)
-        path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        path_entry_frame_script.grid_columnconfigure(0, weight=1)
+        path_entry_script = ttk.Entry(
+            path_entry_frame_script, textvariable=path_var)
+        path_entry_script.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         def browse_file_custom_script(e_var=path_var, p_key=path_key):
             current_path_val = e_var.get()
@@ -348,19 +392,23 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                 title=f"Select {CONFIG_FIELD_DEFINITIONS[p_key]['label']}", filetypes=filetypes, initialdir=initial_dir_val)
             if filepath:
                 e_var.set(filepath)
-        browse_button = ttk.Button(path_entry_frame, text="Browse...",
-                                   command=lambda ev=path_var, pk=path_key: browse_file_custom_script(ev, pk))
-        browse_button.pack(side=tk.LEFT, padx=(2, 0))
+        browse_button_script = ttk.Button(path_entry_frame_script, text="Browse...",
+                                          command=lambda ev=path_var, pk=path_key: browse_file_custom_script(ev, pk))
+        browse_button_script.pack(side=tk.LEFT, padx=(2, 0))
         entries_vars[path_key] = path_var
         widgets_map.setdefault(path_key, []).extend(
-            [path_entry, browse_button])
+            [path_entry_script, browse_button_script])
+
         if script_idx < len(script_keys_list) - 1:
             sep = ttk.Separator(scripts_main_lf, orient='horizontal')
             sep.grid(row=current_script_row_internal + 1, column=0,
                      columnspan=3, sticky='ew', pady=10, padx=5)
         current_script_row_internal += 2
+
         script_toggle_func = make_toggle_dependent_fields_func(
-            enabled_key, [name_key, path_key], associated_labels_keys=[name_key, path_key])
+            enabled_key, [name_key, path_key],
+            associated_labels_keys=script_specific_associated_labels
+        )
         script_check.config(command=script_toggle_func)
         script_toggle_func()
 
@@ -373,6 +421,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
 
         for key_widget in ALL_USER_CONFIG_KEYS:
             if key_widget not in entries_vars:
+
                 continue
             var = entries_vars[key_widget]
             definition = CONFIG_FIELD_DEFINITIONS.get(key_widget, {})
@@ -384,9 +433,11 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                 value_str = var.get().strip()
                 config_data[key_widget] = value_str
                 is_required = definition.get("required", False)
+
                 is_enabled_dependency_key = definition.get("depends_on")
                 is_required_if_enabled_key = definition.get(
                     "required_if_enabled")
+
                 field_is_active_for_validation = True
                 if is_enabled_dependency_key and is_enabled_dependency_key in entries_vars and isinstance(entries_vars.get(is_enabled_dependency_key), tk.BooleanVar):
                     field_is_active_for_validation = entries_vars[is_enabled_dependency_key].get(
@@ -394,6 +445,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                 elif is_required_if_enabled_key and is_required_if_enabled_key in entries_vars and isinstance(entries_vars.get(is_required_if_enabled_key), tk.BooleanVar):
                     field_is_active_for_validation = entries_vars[is_required_if_enabled_key].get(
                     )
+
                 if (is_required or (is_required_if_enabled_key and field_is_active_for_validation)) and not value_str:
                     messagebox.showerror(
                         "Error", f"'{definition['label']}' cannot be empty.", parent=root)
@@ -410,11 +462,13 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                             "Error", f"'{definition['label']}' must be a number.", parent=root)
                         has_errors = True
                         break
-                    elif value_str and int(value_str) <= 0:
-                        messagebox.showerror(
-                            "Error", f"'{definition['label']}' must be > 0.", parent=root)
-                        has_errors = True
-                        break
+
+                    if value_str and int(value_str) <= 0:
+                        if not (key_widget == "ABDM_PORT" and not entries_vars["ABDM_ENABLED"].get()):
+                            messagebox.showerror(
+                                "Error", f"'{definition['label']}' must be > 0.", parent=root)
+                            has_errors = True
+                            break
             if has_errors:
                 break
         if has_errors:
@@ -437,8 +491,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
             with open(config_file_to_write_path, "w", encoding="utf-8") as f:
 
                 f.write("# config.py - Automatically generated by Media Bot UI\n")
-                f.write("from enum import Enum\n\n")
-                f.write("# --- General Settings ---\n")
+                f.write("\n# --- General Settings ---\n")
                 f.write(
                     f'TELEGRAM_BOT_TOKEN = "{config_data.get("TELEGRAM_BOT_TOKEN", "")}"\n')
                 f.write(f'CHAT_ID = "{config_data.get("CHAT_ID", "")}"\n\n')
@@ -462,8 +515,18 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                     f'SONARR_API_KEY = "{config_data.get("SONARR_API_KEY", "")}"\n\n')
                 f.write(
                     f'ABDM_ENABLED = {config_data.get("ABDM_ENABLED", False)}\n')
+
+                abdm_port_val_str = config_data.get("ABDM_PORT", "15151")
+                abdm_port_val_int = 15151
+                if abdm_port_val_str.isdigit():
+                    abdm_port_val_int = int(abdm_port_val_str)
+
+                elif config_data.get("ABDM_ENABLED"):
+                    logger_ui.warning(
+                        "ABDM enabled but port is invalid, using default 15151.")
                 f.write(
-                    f'ABDM_PORT = {int(config_data.get("ABDM_PORT", 15151))}\n\n')
+                    f'ABDM_PORT = {abdm_port_val_int}\n\n')
+
                 f.write("# --- General Settings (Logging, UI & PC Control) ---\n")
                 f.write(
                     f'LOG_LEVEL = "{config_data.get("LOG_LEVEL", "INFO")}"\n')
@@ -494,10 +557,6 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
                         f'SCRIPT_{i}_PATH = r"{config_data.get(f"SCRIPT_{i}_PATH", "")}"\n')
                     if i < 3:
                         f.write("\n")
-                f.write("\n\n# --- Telegram Bot Callback Data Definitions ---\n")
-                f.write("class CallbackData(str, Enum):\n")
-                for cb_item in BotCallbackDataToWrite:
-                    f.write(f'    {cb_item.name} = "{cb_item.value}"\n')
 
             success_message = "Configuration saved!\nThe bot will attempt to reload settings if running."
             if result["log_level_changed"]:

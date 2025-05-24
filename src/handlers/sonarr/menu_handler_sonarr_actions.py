@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.services.sonarr.bot_sonarr_manage import (
     rescan_all_series,
     refresh_all_series,
@@ -13,7 +13,6 @@ from src.services.sonarr.bot_sonarr_manage import (
     trigger_episode_search,
     remove_queue_item as sonarr_remove_queue_item
 )
-
 
 from .menu_handler_library_management_sonarr import display_sonarr_wanted_episodes_menu, display_sonarr_queue_menu
 
@@ -28,6 +27,13 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Sonarr library action attempt by non-primary admin {chat_id}.")
+        return
+
     callback_data_str = query.data
     result_message_raw = "An unknown error occurred with Sonarr action."
     current_page_sonarr_queue = context.user_data.get(
@@ -57,7 +63,9 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
         action_message_raw = "⏳ Initiating Sonarr search for all wanted episodes..."
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(action_message_raw), parse_mode="MarkdownV2")
         result_message_raw = trigger_missing_episode_search()
+
         await display_sonarr_wanted_episodes_menu(update, context, page=current_page_sonarr_wanted)
+
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(result_message_raw), parse_mode="MarkdownV2")
         return
 
@@ -73,7 +81,9 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
             result_message_raw = "⚠️ Invalid episode ID for search."
             logger.error(
                 f"Invalid episode ID in callback: {callback_data_str}")
+
         await display_sonarr_wanted_episodes_menu(update, context, page=current_page_sonarr_wanted)
+
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(result_message_raw), parse_mode="MarkdownV2")
         return
     elif callback_data_str.startswith(CallbackData.CMD_SONARR_QUEUE_ITEM_ACTIONS_MENU_PREFIX.value):
@@ -81,7 +91,8 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
             CallbackData.CMD_SONARR_QUEUE_ITEM_ACTIONS_MENU_PREFIX.value, "")
         parts = payload.split("_", 1)
         queue_item_id = parts[0]
-        media_search_id = parts[1] if len(parts) > 1 else "0"
+        media_search_id = parts[1] if len(
+            parts) > 1 else "0"
         item_title_from_button = "Selected Sonarr Item"
         if query.message and query.message.reply_markup:
             for row in query.message.reply_markup.inline_keyboard:
@@ -104,7 +115,9 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
             queue_item_id, blocklist=False)
         if context.user_data.get('current_queue_action_item'):
             del context.user_data['current_queue_action_item']
+
         await display_sonarr_queue_menu(update, context, page=current_page_sonarr_queue)
+
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(result_message_raw), parse_mode="MarkdownV2")
         return
     elif callback_data_str.startswith(CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value):
@@ -112,7 +125,8 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
             'current_queue_action_item', {})
         queue_item_id = action_item_data.get('item_id', callback_data_str.replace(
             CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value, ""))
-        media_search_id = action_item_data.get('search_id', "0")
+        media_search_id = action_item_data.get(
+            'search_id', "0")
         result_message_raw = sonarr_remove_queue_item(
             queue_item_id, blocklist=True)
         if "✅" in result_message_raw and media_search_id != "0":
@@ -125,7 +139,9 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
             result_message_raw += "\n⚠️ Could not trigger search: Episode ID not available."
         if context.user_data.get('current_queue_action_item'):
             del context.user_data['current_queue_action_item']
+
         await display_sonarr_queue_menu(update, context, page=current_page_sonarr_queue)
+
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(result_message_raw), parse_mode="MarkdownV2")
         return
     elif callback_data_str == CallbackData.CMD_SONARR_QUEUE_BACK_TO_LIST.value:
@@ -137,7 +153,7 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
     else:
         logger.warning(f"Unhandled Sonarr library action: {callback_data_str}")
         result_message_raw = "⚠️ Unrecognized Sonarr library management action."
-        admin_chat_id_str = app_config_holder.get_chat_id_str()
+
         if admin_chat_id_str:
             await show_or_edit_main_menu(admin_chat_id_str, context)
 

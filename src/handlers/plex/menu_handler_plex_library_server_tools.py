@@ -6,7 +6,7 @@ from telegram.error import BadRequest
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_initialization import send_or_edit_universal_status_message
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 
 from src.handlers.plex.menu_handler_plex_controls import display_plex_controls_menu
 from src.bot.bot_text_utils import escape_md_v2
@@ -28,7 +28,13 @@ async def display_plex_library_server_tools_menu(update: Update, context: Contex
                     f"Query answer failed in display_plex_library_server_tools_menu (might be already answered): {e_ans}")
 
     chat_id = update.effective_chat.id
+
     admin_chat_id_str = app_config_holder.get_chat_id_str()
+
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex library/server tools attempt by non-primary admin {chat_id}.")
+        return
 
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)

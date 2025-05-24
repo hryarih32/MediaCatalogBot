@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.bot.bot_text_utils import escape_md_v1, escape_md_v2
 import src.app.app_config_holder as app_config_holder
-from src.config.config_definitions import CallbackData
+from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_initialization import send_or_edit_universal_status_message
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.services.plex.bot_plex_library import get_plex_libraries
@@ -22,6 +22,13 @@ async def plex_recently_added_select_library_callback(update: Update, context: C
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex recently added select lib attempt by non-primary admin {chat_id}.")
+        return
+
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
@@ -79,6 +86,13 @@ async def plex_recently_added_show_results_menu(update: Update, context: Context
     query = update.callback_query
     await query.answer()
     chat_id = update.effective_chat.id
+
+    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+        logger.warning(
+            f"Plex recently added results attempt by non-primary admin {chat_id}.")
+        return
+
     library_key = ""
     if query.data.startswith(CallbackData.CMD_PLEX_RECENTLY_ADDED_SHOW_ITEMS_FOR_LIB_PREFIX.value):
         library_key = query.data.replace(
