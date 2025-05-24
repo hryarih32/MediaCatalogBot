@@ -42,7 +42,7 @@ def build_main_menu_content(version: str):
                 startup_time_obj = datetime.datetime.fromisoformat(
                     iso_timestamp)
                 formatted_startup_time = startup_time_obj.strftime(
-                    "%Y-%m-%d %H:%M:%S")
+                    "%Y-%m-%d %H:%M")
         except Exception as e:
             logger.warning(
                 f"Could not read or parse startup time from {startup_time_file}: {e}")
@@ -55,24 +55,25 @@ def build_main_menu_content(version: str):
     escaped_startup_time = escape_md_v2(formatted_startup_time)
 
     dynamic_menu_text = (
-        f"Media Bot Menu \\(v{escaped_version}\\)\n"
+        f"Media Catalog Telegram Bot \\(v{escaped_version}\\)\n"
         f"\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-\n"
-        f"Plex API: {plex_status_emoji} \\| Radarr API: {radarr_status_emoji} \\| Sonarr API: {sonarr_status_emoji} \\| ABDM API: {abdm_status_emoji}\n"
-        f"Last Restart: {escaped_startup_time}"
+        f"Plex: {plex_status_emoji} \\| ABDM: {abdm_status_emoji}\n"
+        f"Sonarr: {sonarr_status_emoji} \\| Radarr: {radarr_status_emoji}\n"
+        f"Up Since: {escaped_startup_time}"
     )
 
     keyboard = []
 
     if app_config_holder.is_radarr_enabled():
-        keyboard.append([InlineKeyboardButton("➕ Add Movie (Radarr)",
+        keyboard.append([InlineKeyboardButton("➕ Add Movie",
                         callback_data=CallbackData.CMD_ADD_MOVIE_INIT.value)])
 
     if app_config_holder.is_sonarr_enabled():
-        keyboard.append([InlineKeyboardButton("➕ Add TV Show (Sonarr)",
+        keyboard.append([InlineKeyboardButton("➕ Add TV Show",
                         callback_data=CallbackData.CMD_ADD_SHOW_INIT.value)])
 
     if app_config_holder.is_abdm_enabled():
-        keyboard.append([InlineKeyboardButton("📥 Add Download (ABDM)",
+        keyboard.append([InlineKeyboardButton("📥 Add Download",
                                               callback_data=CallbackData.CMD_ADD_DOWNLOAD_INIT.value)])
 
     if app_config_holder.is_radarr_enabled():
@@ -105,11 +106,11 @@ def build_main_menu_content(version: str):
         keyboard.append([InlineKeyboardButton("🖥️ PC Control",
                                               callback_data=CallbackData.CMD_PC_CONTROL_ROOT.value)])
 
-    keyboard.append([InlineKeyboardButton("⚙️ Bot Settings (Opens GUI)",
+    keyboard.append([InlineKeyboardButton("⚙️ Bot Settings",
                     callback_data=CallbackData.CMD_SETTINGS.value)])
 
     if not keyboard:
-        keyboard.append([InlineKeyboardButton("⚙️ Bot Settings (Opens GUI)",
+        keyboard.append([InlineKeyboardButton("⚙️ Bot Settings",
                         callback_data=CallbackData.CMD_SETTINGS.value)])
         dynamic_menu_text += "\n\n" + \
             escape_md_v2(
