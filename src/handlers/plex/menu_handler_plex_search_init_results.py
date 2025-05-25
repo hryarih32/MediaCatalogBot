@@ -59,7 +59,7 @@ async def display_plex_search_results(update: Update, context: ContextTypes.DEFA
             f"Plex search results display attempt by non-primary admin {chat_id}.")
         return
 
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     results = search_results_data.get("results", [])
     message_text_from_plex = search_results_data.get("message", "No results.")
 
@@ -92,7 +92,7 @@ async def display_plex_search_results(update: Update, context: ContextTypes.DEFA
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:

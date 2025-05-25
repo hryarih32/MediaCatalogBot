@@ -73,14 +73,15 @@ async def display_plex_server_tools_sub_menu(update: Update, context: ContextTyp
         status_update_text = "Select a server maintenance task or view info."
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
 
     if not menu_message_id and context.bot_data:
-        menu_message_id = context.bot_data.get("main_menu_message_id")
+        menu_message_id = context.bot_data.get(
+            f"main_menu_message_id_{chat_id}")
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_text_display, reply_markup.to_json())
 
@@ -249,12 +250,12 @@ async def plex_empty_trash_select_library_callback(update: Update, context: Cont
     keyboard.append([InlineKeyboardButton("🔙 Back to Server Maintenance",
                     callback_data=CallbackData.CMD_PLEX_SERVER_TOOLS_SUB_MENU.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     escaped_menu_title = escape_md_v2(PLEX_EMPTY_TRASH_LIBRARY_LIST_TEXT_RAW)
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:

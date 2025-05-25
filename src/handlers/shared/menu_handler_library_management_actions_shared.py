@@ -58,9 +58,10 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
                         callback_data=CallbackData.CMD_SONARR_QUEUE_BACK_TO_LIST.value)])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     if not menu_message_id and context.bot_data:
-        menu_message_id = context.bot_data.get("main_menu_message_id")
+        menu_message_id = context.bot_data.get(
+            f"main_menu_message_id_{chat_id}")
 
     if menu_message_id:
         try:

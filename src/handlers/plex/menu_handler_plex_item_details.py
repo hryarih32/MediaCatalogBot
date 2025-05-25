@@ -106,12 +106,12 @@ async def plex_search_show_details_callback(update: Update, context: ContextType
     keyboard.append([InlineKeyboardButton("⏪ Back to Plex Controls",
                     callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
 
     if menu_message_id:
         try:
             menu_display_title = escape_md_v2(PLEX_ITEM_DETAILS_TEXT_RAW)
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_display_title, reply_markup.to_json())
 
@@ -185,7 +185,8 @@ async def plex_search_show_episode_details_callback(update: Update, context: Con
                     self.effective_user = effective_user_obj
                     self.effective_chat = effective_chat_obj
 
-            original_menu_message_id_seasons = query.message.message_id if query.message else load_menu_message_id()
+            original_menu_message_id_seasons = query.message.message_id if query.message else load_menu_message_id(
+                str(chat_id))
             if not original_menu_message_id_seasons:
                 logger.error(
                     "Cannot determine original menu message ID for Plex season list fallback. Aborting.")
@@ -263,12 +264,12 @@ async def plex_search_show_episode_details_callback(update: Update, context: Con
     keyboard.append([InlineKeyboardButton("⏪ Back to Plex Controls",
                     callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
 
     if menu_message_id:
         try:
             menu_display_title = escape_md_v2(PLEX_EPISODE_DETAILS_TEXT_RAW)
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_display_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
@@ -337,7 +338,7 @@ async def plex_search_refresh_item_metadata_callback(update: Update, context: Co
     if query.message:
         original_menu_message_id = query.message.message_id
     else:
-        original_menu_message_id = load_menu_message_id()
+        original_menu_message_id = load_menu_message_id(str(chat_id))
         if not original_menu_message_id:
             logger.error(
                 "Cannot determine original menu message ID for Plex refresh metadata callback. Aborting re-display.")

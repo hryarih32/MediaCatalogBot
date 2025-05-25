@@ -1,45 +1,49 @@
 # Changelog
 
-## [2.0.0] - 2025-05-24 
+## [2.0.0] - 2025-05-25 
 
 ### Added
 
--   **Multi-User Roles & Request System:**
-    -   Introduced `ADMIN` and `STANDARD_USER` roles. The primary `CHAT_ID` in `config.py` is the initial/main `ADMIN`.
-    -   `STANDARD_USER`s can now "Request Movie" and "Request TV Show" via search.
-    -   `STANDARD_USER`s have a "📋 My Requests" menu to view the status (Pending, Approved, Rejected) of their submissions.
-    -   `ADMIN`s have a new "📮 Admin Requests (X)" menu showing a dynamic count of pending user requests.
-    -   `ADMIN`s can view pending request details and "✅ Approve" or "❌ Reject" them.
-        -   Approving a request initiates the standard Radarr/Sonarr add flow for the admin (choice of default or custom settings).
-        -   Rejecting a request prompts the admin for an optional reason.
-    -   `ADMIN`s have a "📜 Request History" submenu to view processed (approved/rejected/add_failed) requests.
-    -   Request data is stored in `data/requests.json`.
--   **User-Specific Message Persistence:** Main menu and universal status message IDs are now stored per user, allowing for concurrent individual sessions. (Interim: files named `msg_id_menu_CHATID.txt`, etc. To be moved to `bot_state.json` in Phase 6).
+-   **Multi-User Media Request System:**
+    -   Introduced `ADMIN` and `STANDARD_USER` roles. The primary `CHAT_ID` (from `config.py`) is the initial main `ADMIN`. Other interacting users are currently treated as `STANDARD_USER`. (Full user management via GUI/commands is planned).
+    -   **Standard Users:**
+        *   Can search for movies (via Radarr) and TV shows (via Sonarr) and submit them as **requests** for admin approval.
+        *   Have a new **"📋 My Requests"** menu to view a paginated list of their submitted requests and their current status (Pending, Approved, Rejected, Add Failed).
+    -   **Administrators:**
+        *   Have a new **"📮 Admin Requests (X)"** button on their main menu, where (X) dynamically shows the count of pending user requests.
+        *   Can view details of pending requests.
+        *   Can **"✅ Approve"** pending requests, which then initiates the standard Radarr/Sonarr add flow for the admin (allowing choice of default or custom settings). The request status updates to "approved" on successful addition or "add_failed" if issues occur during the admin's add attempt.
+        *   Can **"❌ Reject"** pending requests, with an option to provide a rejection reason. The request status updates to "rejected".
+        *   Can access a **"📜 Request History"** to view previously approved, rejected, and add-failed requests.
+    -   All media request data is now stored in `data/requests.json`.
+-   **User-Specific Message Persistence:** The main menu message and universal status message are now managed per user, allowing for individual, persistent interface states. (Currently uses per-user files; will be consolidated into `bot_state.json` in a future update).
 
 ### Changed
 
--   **ABDM Download Restriction:** "📥 Add Download (ABDM)" feature is now strictly for the primary `ADMIN` (defined by `CHAT_ID` in `config.py`).
--   **Admin Notifications for Requests:** Direct message notifications to admins for new user requests have been removed. Admins now rely on the dynamic count on the "Admin Requests (X)" button in their main menu.
--   **User Notifications for Requests:** Users are no longer directly messaged when their request is approved/rejected by an admin. They must check their "My Requests" page for status updates. (This was a specific change request during development).
--   **CallbackData Relocation:** The `CallbackData` enum was moved from `src/config/config_definitions.py` to `src/bot/bot_callback_data.py` in Phase 1 to prevent it from being written into the user's `config.py`.
--   Internal logic for Radarr/Sonarr add flows (`menu_handler_radarr_add_flow.py`, `menu_handler_sonarr_add_flow.py`) updated to handle both direct admin additions and additions originating from approved user requests.
--   Main menu construction (`menu_handler_main_builder.py`) now dynamically adapts button text ("Add" vs. "Request") and visibility based on user role.
+-   **Media Addition Workflow:**
+    *   The "Add Movie" and "Add TV Show" buttons in the main menu now dynamically display as "Request Movie/Show" for Standard Users, leading to a request submission flow. For Admins, they lead to a direct add flow.
+    *   Internal Radarr/Sonarr add flow logic (`*_add_flow.py` files) now supports being initiated by an admin fulfilling an approved request, correctly updating the request's status upon completion.
+-   **Notifications:**
+    *   Direct Telegram message notifications to users regarding the status of their requests (approved/rejected) have been **removed**. Users now check their "My Requests" page.
+    *   Direct Telegram message notifications to administrators for new pending requests have been **removed**. Administrators should monitor the count on the "Admin Requests (X)" button in their main menu.
+-   **ABDM Download Access:** The "Add Download (ABDM)" feature is confirmed as available only to the **Primary Administrator**.
+-   **`/status` Command:** Now available to both `ADMIN` and `STANDARD_USER` roles, allowing them to refresh their own universal status message.
+-   **Internal `CallbackData` Relocation:** (Completed in prior preparatory work) The `CallbackData` enum was moved to `src/bot/bot_callback_data.py` to ensure it's not part of the user-editable `config.py`.
 
 ### Fixed
 
--   Multiple MarkdownV2 parsing errors related to special characters (parentheses, hyphens, periods) in menu text and status messages have been addressed.
--   Corrected import paths and function call logic for initiating Radarr/Sonarr add flows after an admin approves a user request.
--   Ensured admin's "rejection reason" message is deleted after input, similar to search query messages.
+-   Addressed multiple MarkdownV2 parsing errors that could occur in dynamic menu text and status messages, particularly improving the display of the "My Requests" and "Admin Requests" views.
+-   Corrected callback handler registrations and internal logic to ensure the new admin request management (viewing pending, details, approving, rejecting, history) functions as intended.
+-   Ensured that an administrator's typed "rejection reason" message is deleted after input, maintaining chat cleanliness.
+-   Resolved `AttributeError` and logic issues related to passing media identification data when an admin approves a request and initiates the subsequent Radarr/Sonarr add flow.
 
-### Known Issues / Future Work (Post Phase 3 / For Later Phases)
+### Known Issues / Future Work
 
--   User management (adding/removing users, assigning roles) is not yet implemented via the bot/GUI (Slated for Phase 4 GUI).
-    -   Currently, `get_user_role` in `app_config_holder.py` treats the primary `CHAT_ID` as `ADMIN` and all other interacting users as `STANDARD_USER` for menu display purposes.
--   Full implementation of `REQUEST_ACCESS` flow for unknown users is pending (Phase 10).
--   Robust, atomic state management for `requests.json` and `bot_state.json` (Phase 6).
--   Detailed view for items in "My Requests" for standard users.
--   GUI enhancements (tabbed interface, consolidated launchers, user management tab - Phase 4).
--   Full Plex controls for standard users (currently admin-only).
+-   Full user management (adding/removing users, assigning distinct `ADMIN` vs. `STANDARD_USER` roles beyond the primary admin) is not yet implemented via the bot or GUI. This is a high-priority item for future updates (targeted for Phase 4).
+-   A dedicated flow for unknown users to `REQUEST_ACCESS` to the bot is planned (Phase 10).
+-   State management for `requests.json` and other bot state (like message IDs, user data) will be enhanced with atomic saves and backup/recovery mechanisms (Phase 6).
+-   The detailed view for items in a user's "My Requests" list is currently basic; more detailed information could be added.
+-   Plex controls and other administrative features are still primarily restricted to users identified as `ADMIN` (currently just the primary admin). Broader, role-based access to these features will be considered in later phases.
 
 ## [1.1.0] - 2025-05-23
 

@@ -13,44 +13,53 @@ This guide will walk you through setting up the Media Catalog Telegram Bot on yo
 *   **Git (Recommended):**
     *   For easily cloning the repository. Download from [git-scm.com/downloads](https://git-scm.com/downloads).
 
-## Information to Gather Before Setup
+## Information & Software to Gather Before Setup
 
-You'll need the following details to configure the bot. It's helpful to have these ready:
+You'll need the following details and software installed/accessible to configure the bot. It's helpful to have these ready:
 
-1.  **Telegram Bot Token:**
-    *   Open Telegram and search for `@BotFather`.
-    *   Send the `/newbot` command to `@BotFather`.
-    *   Follow the prompts to name your bot and choose a username for it (must end in `bot`, e.g., `MyMediaAssistantBot`).
-    *   `@BotFather` will provide you with an **API Token**. Copy this token carefully; it's like a password for your bot.
-2.  **Your Telegram Chat ID (for Primary Admin):**
-    *   This is your personal, numerical Telegram User ID.
-    *   Open Telegram and search for `@userinfobot`.
-    *   Send the `/start` command to `@userinfobot`. It will reply with your User ID. Note this down. This ID will be configured as the **Primary Administrator** of the bot.
-3.  **Plex Media Server Details (Optional):**
-    *   **Plex URL:** The full URL of your Plex server (e.g., `http://localhost:32400` if on the same machine, or `https://your-plex-domain.com` if hosted elsewhere).
-    *   **Plex Token (X-Plex-Token):**
-        *   Refer to the official Plex support article: [Finding an Authentication Token / X-Plex-Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/). This usually involves inspecting network requests while logged into your Plex Web App.
-    *   Download Plex Media Server from: [plex.tv/media-server-downloads/](https://www.plex.tv/media-server-downloads/)
-4.  **Radarr Details (Optional - for Movie Management):**
+1.  **Telegram Bot Token & Your Chat ID:**
+    *   **Bot Token:**
+        1.  Open Telegram and search for the user `@BotFather`.
+        2.  Send the `/newbot` command to `@BotFather`.
+        3.  Follow the prompts to name your bot and choose a username for it (the username must end in `bot`, e.g., `MyMediaPalBot`).
+        4.  `@BotFather` will provide you with an **API Token**. Copy this token carefully; it's essential for the bot to connect to Telegram.
+    *   **Your Telegram Chat ID (for Primary Admin):**
+        1.  This is your personal, numerical Telegram User ID.
+        2.  Open Telegram and search for the user `@userinfobot`.
+        3.  Send the `/start` command to `@userinfobot`. It will reply with your User ID. Note this number. This ID will be configured as the **Primary Administrator** of the bot, granting full access including the `/settings` command.
+
+2.  **Plex Media Server (Optional):**
+    *   **Software:** Download and install Plex Media Server from [plex.tv/media-server-downloads/](https://www.plex.tv/media-server-downloads/).
+    *   **Plex URL:** The full URL of your Plex server (e.g., `http://localhost:32400` if on the same machine as the bot, or `https://your-plex-domain.com` if hosted elsewhere).
+    *   **Plex Token (X-Plex-Token):** This token authenticates the bot with your Plex server.
+        *   Refer to the official Plex support article: [Finding an Authentication Token / X-Plex-Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/).
+        *   The easiest way is usually to log into your Plex Web App (app.plex.tv), browse to one of your library items, right-click on its poster, choose "Get Info", then click "View XML". In the XML data, look for the `X-Plex-Token="YOUR_TOKEN_HERE"` attribute in the URL at the top.
+
+3.  **Radarr (Optional - for Movie Management):**
+    *   **Software:** Download Radarr from its official site [radarr.video](https://radarr.video/) (links to GitHub: [https://github.com/Radarr/Radarr](https://github.com/Radarr/Radarr)) or follow installation guides on the [Servarr Wiki](https://wiki.servarr.com/radarr/installation).
     *   **Radarr API URL:** The full URL to your Radarr instance, including any base path if configured (e.g., `http://localhost:7878` or `http://your-server/radarr`).
-    *   **Radarr API Key:** In Radarr, go to `Settings` > `General` > `Security` section, and copy the `API Key`.
-    *   Download Radarr from: [radarr.video/#download](https://radarr.video/#download) or [Servarr Wiki - Installation](https://wiki.servarr.com/radarr/installation).
-5.  **Sonarr Details (Optional - for TV Show Management):**
+    *   **Radarr API Key:** In your Radarr web interface, go to `Settings` > `General` > `Security` section, and copy the `API Key`.
+
+4.  **Sonarr (Optional - for TV Show Management):**
+    *   **Software:** Download Sonarr from its official site [sonarr.tv](https://sonarr.tv/) (links to GitHub: [https://github.com/Sonarr/Sonarr](https://github.com/Sonarr/Sonarr)) or follow installation guides on the [Servarr Wiki](https://wiki.servarr.com/sonarr/installation).
     *   **Sonarr API URL:** The full URL to your Sonarr instance (e.g., `http://localhost:8989` or `http://your-server/sonarr`).
-    *   **Sonarr API Key:** In Sonarr, go to `Settings` > `General` > `Security` section, and copy the `API Key`.
-    *   Download Sonarr from: [sonarr.tv/#download](https://sonarr.tv/#download) or [Servarr Wiki - Installation](https://wiki.servarr.com/sonarr/installation).
-6.  **AB Download Manager (ABDM) Details (Optional - for Direct Downloads, Primary Admin Only):**
-    *   **ABDM API Port:** To use this, ABDM's "Browser Integration" HTTP API must be enabled.
-        1.  Open your AB Download Manager application.
-        2.  Look for settings related to `Tools`, `Settings`, or `Preferences`.
-        3.  Find a section typically named "Browser Integration" or "API".
-        4.  Ensure the option "Enable browser integration HTTP API" (or similar wording) is **checked/enabled**.
-        5.  Note the **Port** number specified there (common default is `15151`).
-    *   Download AB Download Manager: Search for the official website or repository for your specific "AB Download Manager" (e.g., "AB Material Downloader" or other variants). *Always download software from trusted, official sources.*
-7.  **Application Launcher Paths (Optional):**
-    *   If you want to use the bot to launch applications like Plex, Sonarr, Radarr, Prowlarr, or your Torrent client, you'll need the **full executable path** to these programs on the machine where the bot will run.
-    *   Prowlarr: [prowlarr.com/#download](https://prowlarr.com/#download) or [Servarr Wiki - Installation](https://wiki.servarr.com/prowlarr/installation).
-    *   Torrent Client: e.g., qBittorrent, Deluge, Transmission. Get the path to its `.exe` (Windows) or executable file (Linux/macOS).
+    *   **Sonarr API Key:** In your Sonarr web interface, go to `Settings` > `General` > `Security` section, and copy the `API Key`.
+
+5.  **AB Download Manager (ABDM) (Optional - for Direct Downloads, Primary Admin Only):**
+    *   **Software:** Download "AB Download Manager" from its official GitHub repository: [https://github.com/amir1376/ab-download-manager](https://github.com/amir1376/ab-download-manager). Follow their instructions for installation.
+    *   **ABDM API Port & Enabling API:** For the bot to communicate with ABDM, its "Browser Integration" HTTP API must be enabled:
+        1.  Open the AB Download Manager application.
+        2.  Navigate to its settings, typically found under `Tools > Settings` (or a similar menu).
+        3.  Look for a tab or section named "Browser Integration" or "API".
+        4.  Ensure the option **"Enable browser integration HTTP API"** (or similar wording) is **checked/enabled**.
+        5.  Note the **"Port"** number specified in this section (the default is often `15151`). You will need this port number for the bot's configuration.
+
+6.  **Application Launcher Paths (Optional):**
+    *   If you want to use the bot to launch applications like Plex, Sonarr, Radarr, Prowlarr, your Torrent client, or ABDM itself, you will need the **full executable path** to these programs on the machine where the bot will run.
+    *   **Prowlarr:** Download from [prowlarr.com](https://prowlarr.com/) (links to GitHub: [https://github.com/Prowlarr/Prowlarr](https://github.com/Prowlarr/Prowlarr)) or the [Servarr Wiki](https://wiki.servarr.com/prowlarr/installation).
+    *   **Torrent Client:** (e.g., qBittorrent, Deluge, Transmission). Download from their official websites.
+        *   qBittorrent: [qbittorrent.org](https://www.qbittorrent.org/) (GitHub: [https://github.com/qbittorrent/qBittorrent](https://github.com/qbittorrent/qBittorrent))
+    *   You'll need to locate the `.exe` file (Windows) or the main executable (Linux/macOS) for each.
 
 ## Setup Steps
 
@@ -188,3 +197,4 @@ This process bundles the Python interpreter and all necessary libraries into a s
 *   **PC Control Issues:**
     *   Confirm `PC_CONTROL_ENABLED = True` in `data/config.py`.
     *   Ensure the `pyautogui` and `pycaw` (for advanced volume) libraries were installed correctly from `requirements.txt`. On some Linux systems, `pyautogui` may have additional X11 dependencies.
+*   **`[Errno 11001] getaddrinfo failed` / `telegram.error.NetworkError`:** This usually indicates a DNS resolution problem or network connectivity issue on the machine hosting the bot. Check your internet connection, DNS server settings (try public DNS like `8.8.8.8` or `1.1.1.1`), and firewall settings.

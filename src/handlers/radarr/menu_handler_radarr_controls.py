@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
 import src.app.app_config_holder as app_config_holder
+
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
 from src.bot.bot_callback_data import CallbackData
@@ -20,7 +21,6 @@ async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEF
         await query.answer()
 
     chat_id = update.effective_chat.id
-
     admin_chat_id_str = app_config_holder.get_chat_id_str()
 
     if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
@@ -30,7 +30,7 @@ async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEF
 
     if not app_config_holder.is_radarr_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Radarr API features are disabled.", parse_mode=None)
-        await show_or_edit_main_menu(admin_chat_id_str, context)
+        await show_or_edit_main_menu(str(chat_id), context)
         return
 
     keyboard = [
@@ -42,16 +42,19 @@ async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEF
                               callback_data=CallbackData.CMD_HOME_BACK.value)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     if not menu_message_id and context.bot_data:
-        menu_message_id = context.bot_data.get("main_menu_message_id")
+
+        menu_message_id = context.bot_data.get(
+            f"main_menu_message_id_{chat_id}")
 
     escaped_menu_title_for_display = escape_md_v2(
         RADARR_CONTROLS_MENU_TEXT_RAW)
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (
                 escaped_menu_title_for_display, reply_markup.to_json())
@@ -74,14 +77,17 @@ async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEF
                 logger.error(
                     f"Error displaying Radarr Controls menu: {e}", exc_info=True)
             if admin_chat_id_str:
-                await show_or_edit_main_menu(admin_chat_id_str, context)
+
+                await show_or_edit_main_menu(str(chat_id), context)
         except Exception as e:
             logger.error(
                 f"Error displaying Radarr Controls menu: {e}", exc_info=True)
             if admin_chat_id_str:
-                await show_or_edit_main_menu(admin_chat_id_str, context)
+
+                await show_or_edit_main_menu(str(chat_id), context)
     else:
         logger.error(
-            "Could not find main_menu_message_id for Radarr Controls menu.")
+            f"Could not find main_menu_message_id for Radarr Controls menu for chat {chat_id}.")
         if admin_chat_id_str:
-            await show_or_edit_main_menu(admin_chat_id_str, context, force_send_new=True)
+
+            await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)

@@ -108,7 +108,7 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
                     callback_data=CallbackData.CMD_SONARR_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     if not menu_message_id and context.bot_data:
         menu_message_id = context.bot_data.get("main_menu_message_id")
 
@@ -117,7 +117,7 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title_display,
                                  reply_markup.to_json())
@@ -232,16 +232,17 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
                     callback_data=CallbackData.CMD_SONARR_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     if not menu_message_id and context.bot_data:
-        menu_message_id = context.bot_data.get("main_menu_message_id")
+        menu_message_id = context.bot_data.get(
+            f"main_menu_message_id_{chat_id}")
 
     escaped_menu_title_display = escape_md_v2(
         menu_title_text_raw.replace("(", "\\(").replace(")", "\\)"))
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title_display,
                                  reply_markup.to_json())

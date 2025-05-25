@@ -49,13 +49,13 @@ async def plex_recently_added_select_library_callback(update: Update, context: C
     keyboard.append([InlineKeyboardButton("🔙 Back to Plex Controls",
                     callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     escaped_menu_title = escape_md_v2(
         PLEX_LIBRARY_LIST_TEXT_RAW.replace("-", "\\-"))
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
@@ -209,14 +209,14 @@ async def plex_recently_added_show_results_menu(update: Update, context: Context
     keyboard.append([InlineKeyboardButton("⏪ To Plex Controls",
                     callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
 
     if menu_message_id:
         try:
             escaped_library_name_menu_v2 = escape_md_v2(library_name_raw)
             menu_text_display = PLEX_RECENTLY_ADDED_ITEMS_TEXT_TEMPLATE_RAW.format(
                 library_name=escaped_library_name_menu_v2, current_page=current_page, total_pages=total_pages).replace("(", "\\(").replace(")", "\\)")
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_text_display, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:

@@ -74,7 +74,7 @@ async def plex_search_list_seasons_callback(update: Update, context: ContextType
     keyboard.append([InlineKeyboardButton("⏪ Back to Plex Controls",
                     callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
 
     escaped_show_title_for_menu = escape_md_v2(show_title_raw)
     menu_text_display = PLEX_SHOW_SEASONS_MENU_TEXT_RAW.format(
@@ -82,7 +82,7 @@ async def plex_search_list_seasons_callback(update: Update, context: ContextType
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_text_display, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
@@ -184,7 +184,7 @@ async def plex_search_list_episodes_callback(update: Update, context: ContextTyp
                               callback_data=CallbackData.CMD_PLEX_CONTROLS.value)]
     ])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
 
     escaped_show_title_menu, escaped_season_title_menu = escape_md_v2(
         show_title_raw), escape_md_v2(season_title_raw)
@@ -196,7 +196,7 @@ async def plex_search_list_episodes_callback(update: Update, context: ContextTyp
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_text_display, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:

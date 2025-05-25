@@ -153,6 +153,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await delete_user_message_if_exists(update)
 
     user_role = app_config_holder.get_user_role(str(chat_id))
+
     if user_role not in [app_config_holder.ROLE_ADMIN, app_config_holder.ROLE_STANDARD_USER]:
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied.", parse_mode=None)
         return
@@ -195,6 +196,7 @@ def setup_handlers(application: Application):
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("home", home_command))
     application.add_handler(CommandHandler("settings", settings_command))
+
     application.add_handler(CommandHandler("status", status_command))
 
     root_menu_trigger_patterns = [
@@ -210,6 +212,7 @@ def setup_handlers(application: Application):
         CallbackData.RADARR_CANCEL.value, CallbackData.SONARR_CANCEL.value,
         CallbackData.CMD_PLEX_MENU_BACK.value,
         CallbackData.CMD_MY_REQUESTS_MENU.value,
+
     ]
     regex_values_root = [item for item in root_menu_trigger_patterns]
     regex_root_menu_triggers = "^(" + "|".join(regex_values_root) + ")$"
@@ -381,5 +384,4 @@ def setup_handlers(application: Application):
 
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, handle_pending_search))
-    logger.info(
-        "Telegram bot handlers updated for Phase 3 (Admin Request Workflow).")
+    logger.info("Telegram bot handlers updated for Phase 3 (with fixes).")

@@ -91,11 +91,11 @@ async def plex_now_playing_callback(update: Update, context: ContextTypes.DEFAUL
                     callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     if menu_message_id:
         try:
             escaped_menu_title = escape_md_v2(PLEX_NOW_PLAYING_TEXT_RAW)
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
@@ -208,12 +208,12 @@ async def plex_scan_libraries_select_callback(update: Update, context: ContextTy
     keyboard.append([InlineKeyboardButton("🔙 Back to Library & Server Tools",
                     callback_data=CallbackData.CMD_PLEX_LIBRARY_SERVER_TOOLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     escaped_menu_title = escape_md_v2(PLEX_SCAN_LIBRARY_LIST_TEXT_RAW)
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
@@ -302,12 +302,12 @@ async def plex_refresh_library_metadata_select_callback(update: Update, context:
     keyboard.append([InlineKeyboardButton("🔙 Back to Library & Server Tools",
                     callback_data=CallbackData.CMD_PLEX_LIBRARY_SERVER_TOOLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     escaped_menu_title = escape_md_v2(PLEX_REFRESH_LIBRARY_LIST_TEXT_RAW)
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:

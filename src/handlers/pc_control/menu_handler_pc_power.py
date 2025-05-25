@@ -64,9 +64,10 @@ async def display_system_power_controls_menu(update: Update, context: ContextTyp
             "🔙 Back to PC Controls", callback_data=CallbackData.CMD_PC_CONTROL_ROOT.value)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    menu_message_id = load_menu_message_id()
+    menu_message_id = load_menu_message_id(str(chat_id))
     if not menu_message_id and context.bot_data:
-        menu_message_id = context.bot_data.get("main_menu_message_id")
+        menu_message_id = context.bot_data.get(
+            f"main_menu_message_id_{chat_id}")
 
     escaped_menu_title_for_display = escape_md_v2(
         f"🔌 *PC System Power Controls*\n\n"
@@ -76,7 +77,7 @@ async def display_system_power_controls_menu(update: Update, context: ContextTyp
 
     if menu_message_id:
         try:
-            current_content_key = f"menu_message_content_{menu_message_id}"
+            current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (
                 escaped_menu_title_for_display, reply_markup.to_json())
