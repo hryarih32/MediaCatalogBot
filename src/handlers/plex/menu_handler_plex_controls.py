@@ -1,3 +1,4 @@
+
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -16,21 +17,24 @@ PLEX_CONTROLS_MENU_TEXT_RAW = "🌐 Plex Controls"
 
 async def display_plex_controls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
     if query:
         await query.answer()
 
-    chat_id = update.effective_chat.id
-
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Unauthorized attempt to access Plex controls menu from chat_id {chat_id}")
+            f"Unauthorized attempt to access Plex controls menu from chat_id {chat_id} (Role: {user_role})")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Plex Controls are for administrators.", parse_mode=None)
+
         return
 
     if not app_config_holder.is_plex_enabled():
-        await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex API features are disabled.", parse_mode=None)
-        await show_or_edit_main_menu(admin_chat_id_str, context)
+        logger.info(
+            f"Plex controls menu request by {chat_id}, but Plex feature is disabled.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex API features are disabled in the bot's settings.", parse_mode=None)
+
         return
 
     keyboard = [
@@ -74,18 +78,18 @@ async def display_plex_controls_menu(update: Update, context: ContextTypes.DEFAU
             if "message is not modified" in str(e).lower():
                 logger.debug(
                     f"Plex Controls menu already displayed for message {menu_message_id}. Edit skipped.")
+
+                await send_or_edit_universal_status_message(context.bot, chat_id, "Select a Plex control option.", parse_mode=None)
             else:
                 logger.error(
-                    f"Error displaying Plex Controls menu: {e}", exc_info=True)
-            if admin_chat_id_str:
-                await show_or_edit_main_menu(admin_chat_id_str, context)
+                    f"BadRequest displaying Plex Controls menu: {e}", exc_info=True)
+                await show_or_edit_main_menu(str(chat_id), context)
         except Exception as e:
             logger.error(
                 f"Error displaying Plex Controls menu: {e}", exc_info=True)
-            if admin_chat_id_str:
-                await show_or_edit_main_menu(admin_chat_id_str, context)
+            await show_or_edit_main_menu(str(chat_id), context)
     else:
         logger.error(
             "Could not find main_menu_message_id for Plex Controls menu.")
-        if admin_chat_id_str:
-            await show_or_edit_main_menu(admin_chat_id_str, context, force_send_new=True)
+
+        await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)

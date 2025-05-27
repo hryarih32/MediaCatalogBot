@@ -1,3 +1,4 @@
+
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -5,7 +6,7 @@ from telegram.ext import ContextTypes
 from src.bot.bot_text_utils import escape_md_v1, escape_md_v2
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_callback_data import CallbackData
-from src.bot.bot_initialization import send_or_edit_universal_status_message
+from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.services.plex.bot_plex_media_items import get_plex_show_seasons, get_plex_season_episodes
 from src.handlers.plex.menu_handler_plex_controls import display_plex_controls_menu
@@ -19,28 +20,34 @@ PLEX_SEASON_EPISODES_MENU_TEXT_RAW = "📺 Episodes for *{show_title}* / *{seaso
 
 async def plex_search_list_seasons_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    await query.answer()
+
+    if user_role not in [app_config_holder.ROLE_ADMIN, app_config_holder.ROLE_STANDARD_USER]:
         logger.warning(
-            f"Plex list seasons attempt by non-primary admin {chat_id}.")
+            f"Plex list seasons attempt by unauthorized role {user_role} for chat_id {chat_id}.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied to Plex show seasons.", parse_mode=None)
         return
 
     show_rating_key = query.data.replace(
         CallbackData.CMD_PLEX_SEARCH_LIST_SEASONS_PREFIX.value, "")
 
     if not app_config_holder.is_plex_enabled():
+        logger.info(
+            f"Plex list seasons request by {chat_id}, but Plex feature is disabled.")
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
 
-    await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Fetching seasons...", parse_mode=None)
+    status_msg_fetching_seasons = f"⏳ Fetching seasons for show RK: {escape_md_v2(show_rating_key)}\\.\\.\\."
+    await send_or_edit_universal_status_message(context.bot, chat_id, status_msg_fetching_seasons, parse_mode="MarkdownV2")
     seasons_data_result = get_plex_show_seasons(show_rating_key)
 
     if "error" in seasons_data_result:
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(seasons_data_result["error"]), parse_mode="MarkdownV2")
-        await display_plex_controls_menu(update, context)
+        await (display_plex_controls_menu(update, context) if user_role == app_config_holder.ROLE_ADMIN
+               else show_or_edit_main_menu(str(chat_id), context))
         return
 
     seasons = seasons_data_result.get("seasons", [])
@@ -48,6 +55,7 @@ async def plex_search_list_seasons_callback(update: Update, context: ContextType
 
     context.user_data['plex_search_current_show_rating_key'] = show_rating_key
     context.user_data['plex_search_current_show_title'] = show_title_raw
+
     context.user_data.pop('plex_search_current_season_number', None)
     context.user_data.pop('plex_search_current_season_title', None)
 
@@ -59,20 +67,30 @@ async def plex_search_list_seasons_callback(update: Update, context: ContextType
         seasons.sort(key=lambda s: s.get("season_number", 999))
         for season in seasons:
             button_season_title = season['title']
+            if len(button_season_title) > 50:
+                button_season_title = button_season_title[:47] + "..."
             callback_ep_list = f"{CallbackData.CMD_PLEX_SEARCH_LIST_EPISODES_PREFIX.value}{show_rating_key}_{season['season_number']}"
             keyboard.append([InlineKeyboardButton(
                 f"➡️ {button_season_title}", callback_data=callback_ep_list)])
     else:
+
         await send_or_edit_universal_status_message(context.bot, chat_id, f"ℹ️ No seasons found for '{escape_md_v1(show_title_raw)}'\\.", parse_mode="MarkdownV2")
 
     button_show_title_short = show_title_raw[:25] + \
         "..." if len(show_title_raw) > 25 else show_title_raw
     keyboard.append([InlineKeyboardButton(f"🔙 Return to Show: {button_show_title_short}",
                     callback_data=f"{CallbackData.CMD_PLEX_SEARCH_SHOW_DETAILS_PREFIX.value}{show_rating_key}")])
-    keyboard.append([InlineKeyboardButton("♻️ Refresh Show Metadata",
-                    callback_data=f"{CallbackData.CMD_PLEX_SEARCH_REFRESH_ITEM_METADATA_PREFIX.value}{show_rating_key}")])
-    keyboard.append([InlineKeyboardButton("⏪ Back to Plex Controls",
-                    callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
+
+    if user_role == app_config_holder.ROLE_ADMIN:
+        keyboard.append([InlineKeyboardButton("♻️ Refresh Show Metadata",
+                        callback_data=f"{CallbackData.CMD_PLEX_SEARCH_REFRESH_ITEM_METADATA_PREFIX.value}{show_rating_key}")])
+
+    if user_role == app_config_holder.ROLE_ADMIN:
+        keyboard.append([InlineKeyboardButton("⏪ Back to Plex Controls",
+                        callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
+    else:
+        keyboard.append([InlineKeyboardButton(
+            "⏪ Back to Main Menu", callback_data=CallbackData.CMD_HOME_BACK.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
     menu_message_id = load_menu_message_id(str(chat_id))
 
@@ -86,33 +104,47 @@ async def plex_search_list_seasons_callback(update: Update, context: ContextType
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_text_display, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=menu_message_id, text=menu_text_display, reply_markup=reply_markup, parse_mode="MarkdownV2")
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_id,
+                    text=menu_text_display,
+                    reply_markup=reply_markup,
+                    parse_mode="MarkdownV2"
+                )
                 context.bot_data[current_content_key] = new_content_tuple
-            await send_or_edit_universal_status_message(context.bot, chat_id, f"Displaying seasons for '{escape_md_v2(show_title_raw)}'\\.", parse_mode="MarkdownV2")
+
+            if seasons:
+                await send_or_edit_universal_status_message(context.bot, chat_id, f"Displaying seasons for '{escape_md_v2(show_title_raw)}'\\.", parse_mode="MarkdownV2")
         except Exception as e:
             if "message is not modified" in str(e).lower():
                 logger.debug(
                     f"Plex show seasons menu already displayed for message {menu_message_id}. Edit skipped.")
-                await send_or_edit_universal_status_message(context.bot, chat_id, f"Displaying seasons for '{escape_md_v2(show_title_raw)}'\\.", parse_mode="MarkdownV2")
+                if seasons:
+                    await send_or_edit_universal_status_message(context.bot, chat_id, f"Displaying seasons for '{escape_md_v2(show_title_raw)}'\\.", parse_mode="MarkdownV2")
             else:
                 logger.error(
                     f"Error editing message for Plex show seasons: {e}", exc_info=True)
-                await display_plex_controls_menu(update, context)
+                await (display_plex_controls_menu(update, context) if user_role == app_config_holder.ROLE_ADMIN
+
+                       else show_or_edit_main_menu(str(chat_id), context))
     else:
         logger.error(
             "Cannot find menu_message_id for plex_search_list_seasons_callback")
-        await display_plex_controls_menu(update, context)
+        await (display_plex_controls_menu(update, context) if user_role == app_config_holder.ROLE_ADMIN
+               else show_or_edit_main_menu(str(chat_id), context))
 
 
 async def plex_search_list_episodes_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    await query.answer()
+
+    if user_role not in [app_config_holder.ROLE_ADMIN, app_config_holder.ROLE_STANDARD_USER]:
         logger.warning(
-            f"Plex list episodes attempt by non-primary admin {chat_id}.")
+            f"Plex list episodes attempt by unauthorized role {user_role} for chat_id {chat_id}.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied to Plex episodes.", parse_mode=None)
         return
 
     show_rating_key, season_number_str = "", ""
@@ -138,14 +170,15 @@ async def plex_search_list_episodes_callback(update: Update, context: ContextTyp
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
 
-    await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Fetching episodes...", parse_mode=None)
-
+    status_msg_fetching_eps = f"⏳ Fetching episodes for S{escape_md_v2(season_number_str)} of show RK: {escape_md_v2(show_rating_key)}\\.\\.\\."
+    await send_or_edit_universal_status_message(context.bot, chat_id, status_msg_fetching_eps, parse_mode="MarkdownV2")
     episodes_data_result = get_plex_season_episodes(
         show_rating_key, season_number_str)
 
     if "error" in episodes_data_result:
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(episodes_data_result["error"]), parse_mode="MarkdownV2")
-        await display_plex_controls_menu(update, context)
+        await (display_plex_controls_menu(update, context) if user_role == app_config_holder.ROLE_ADMIN
+               else show_or_edit_main_menu(str(chat_id), context))
         return
 
     episodes = episodes_data_result.get("records", [])
@@ -154,45 +187,57 @@ async def plex_search_list_episodes_callback(update: Update, context: ContextTyp
         "season_title", f"Season {season_number_str}")
 
     context.user_data.update({
+
         'plex_search_current_show_rating_key': show_rating_key,
         'plex_search_current_show_title': show_title_raw,
         'plex_search_current_season_number': season_number_str,
         'plex_search_current_season_title': season_title_raw,
-
         'plex_search_current_episode_page': 1
     })
 
     keyboard = []
+    status_msg_raw_disp = ""
     if episodes:
 
-        for episode in episodes:
-            ep_display_title_button = episode['title'][:55] + \
-                "..." if len(episode['title']) > 55 else episode['title']
+        for episode in episodes[:30]:
+            ep_display_title_button = episode['title']
+            if len(ep_display_title_button) > 55:
+                ep_display_title_button = ep_display_title_button[:52] + "..."
+
             keyboard.append([InlineKeyboardButton(
                 f"{ep_display_title_button}", callback_data=f"{CallbackData.CMD_PLEX_SEARCH_SHOW_EPISODE_DETAILS_PREFIX.value}{episode['ratingKey']}")])
+        if len(episodes) > 30:
 
+            keyboard.append([InlineKeyboardButton(
+                f"... and {len(episodes)-30} more episodes (not listed).", callback_data=CallbackData.CMD_PLEX_MENU_BACK.value)])
+
+        status_msg_raw_disp = f"Displaying episodes for '{show_title_raw} - {season_title_raw}'\\."
     else:
-        status_msg_raw = f"ℹ️ No episodes found for '{show_title_raw} - {season_title_raw}'\\."
-        await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(status_msg_raw), parse_mode="MarkdownV2")
+        status_msg_raw_disp = f"ℹ️ No episodes found in '{show_title_raw} - {season_title_raw}'\\."
+
+    await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(status_msg_raw_disp), parse_mode="MarkdownV2")
 
     button_show_title_short = show_title_raw[:20] + \
         "..." if len(show_title_raw) > 20 else show_title_raw
     keyboard.extend([
         [InlineKeyboardButton(f"🔙 Back to Seasons ({button_show_title_short})",
                               callback_data=f"{CallbackData.CMD_PLEX_SEARCH_LIST_SEASONS_PREFIX.value}{show_rating_key}")],
-        [InlineKeyboardButton("⏪ Back to Plex Controls",
-                              callback_data=CallbackData.CMD_PLEX_CONTROLS.value)]
     ])
+    if user_role == app_config_holder.ROLE_ADMIN:
+        keyboard.append([InlineKeyboardButton(
+            "⏪ Back to Plex Controls", callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
+    else:
+        keyboard.append([InlineKeyboardButton(
+            "⏪ Back to Main Menu", callback_data=CallbackData.CMD_HOME_BACK.value)])
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     menu_message_id = load_menu_message_id(str(chat_id))
 
     escaped_show_title_menu, escaped_season_title_menu = escape_md_v2(
         show_title_raw), escape_md_v2(season_title_raw)
-
     menu_text_display = PLEX_SEASON_EPISODES_MENU_TEXT_RAW.format(
-        show_title=escaped_show_title_menu, season_title=escaped_season_title_menu,
-        current_page=1, total_pages=1
-    ).replace(" (Page 1/1)", "")
+        show_title=escaped_show_title_menu, season_title=escaped_season_title_menu
+    )
 
     if menu_message_id:
         try:
@@ -200,26 +245,26 @@ async def plex_search_list_episodes_callback(update: Update, context: ContextTyp
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (menu_text_display, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=menu_message_id, text=menu_text_display, reply_markup=reply_markup, parse_mode="MarkdownV2")
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_id,
+                    text=menu_text_display,
+                    reply_markup=reply_markup,
+                    parse_mode="MarkdownV2"
+                )
                 context.bot_data[current_content_key] = new_content_tuple
-
-            status_msg_raw_disp = f"Displaying episodes for '{show_title_raw} - {season_title_raw}'\\."
-            if not episodes:
-                status_msg_raw_disp = f"No episodes found in '{show_title_raw} - {season_title_raw}'\\."
-            await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(status_msg_raw_disp), parse_mode="MarkdownV2")
         except Exception as e:
             if "message is not modified" in str(e).lower():
                 logger.debug(
                     f"Plex season episodes menu already displayed for message {menu_message_id}. Edit skipped.")
-                status_msg_raw_disp_no_mod = f"Displaying episodes for '{show_title_raw} - {season_title_raw}'\\."
-                if not episodes:
-                    status_msg_raw_disp_no_mod = f"No episodes found in '{show_title_raw} - {season_title_raw}'\\."
-                await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(status_msg_raw_disp_no_mod), parse_mode="MarkdownV2")
             else:
                 logger.error(
                     f"Error editing message for Plex season episodes: {e}", exc_info=True)
-                await display_plex_controls_menu(update, context)
+                await (display_plex_controls_menu(update, context) if user_role == app_config_holder.ROLE_ADMIN
+
+                       else show_or_edit_main_menu(str(chat_id), context))
     else:
         logger.error(
             "Cannot find menu_message_id for plex_search_list_episodes_callback")
-        await display_plex_controls_menu(update, context)
+        await (display_plex_controls_menu(update, context) if user_role == app_config_holder.ROLE_ADMIN
+               else show_or_edit_main_menu(str(chat_id), context))

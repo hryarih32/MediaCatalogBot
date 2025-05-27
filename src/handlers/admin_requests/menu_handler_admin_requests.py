@@ -1,3 +1,4 @@
+
 import logging
 import math
 import time
@@ -15,7 +16,7 @@ from src.bot.bot_text_utils import escape_md_v2, escape_md_v1
 from src.handlers.user_requests.menu_handler_my_requests import format_request_timestamp
 
 from src.handlers.radarr.menu_handler_radarr_add_flow import radarr_movie_selection_callback as admin_radarr_add_flow_initiator
-from src.handlers.sonarr.menu_handler_sonarr_add_search import sonarr_show_selection_callback as admin_sonarr_add_flow_initiator
+from src.handlers.sonarr.menu_handler_sonarr_add_flow import sonarr_show_selection_callback as admin_sonarr_add_flow_initiator
 from src.services.radarr.bot_radarr_core import _radarr_request as radarr_api_get
 from src.services.sonarr.bot_sonarr_core import _sonarr_request as sonarr_api_get
 
@@ -31,6 +32,7 @@ ASK_REJECTION_REASON, HANDLE_REJECTION_REASON = range(2)
 async def display_admin_pending_requests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 1) -> None:
     query = update.callback_query
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
     if query:
         await query.answer()
@@ -45,7 +47,9 @@ async def display_admin_pending_requests_menu(update: Update, context: ContextTy
         elif query.data == CallbackData.CMD_ADMIN_REQUESTS_MENU.value:
             page = 1
 
-    if not app_config_holder.is_primary_admin(str(chat_id)) and app_config_holder.get_user_role(str(chat_id)) != app_config_holder.ROLE_ADMIN:
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Unauthorized access attempt to admin pending requests by chat_id {chat_id} (Role: {user_role})")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. This section is for administrators.", parse_mode=None)
         return
 
@@ -177,8 +181,11 @@ async def display_admin_pending_requests_menu(update: Update, context: ContextTy
 async def display_admin_request_details_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    if not app_config_holder.is_primary_admin(str(chat_id)) and app_config_holder.get_user_role(str(chat_id)) != app_config_holder.ROLE_ADMIN:
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Unauthorized access attempt to admin request details by chat_id {chat_id} (Role: {user_role})")
         await query.answer("Access Denied.", show_alert=True)
         return
 
@@ -287,33 +294,40 @@ async def display_admin_request_details_view(update: Update, context: ContextTyp
 async def admin_approve_request_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     admin_chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(admin_chat_id))
+
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Unauthorized attempt to approve request by chat_id {admin_chat_id} (Role: {user_role})")
+        await query.answer("Access Denied.", show_alert=True)
+        return
+
     request_id = query.data.replace(
         CallbackData.CMD_ADMIN_APPROVE_REQUEST_PREFIX.value, "")
-
     await query.answer("Processing approval...")
 
     target_request = context.user_data.get('admin_current_request_to_process')
-    target_request_idx = context.user_data.get(
-        'admin_current_request_idx_to_process', -1)
 
     if not target_request or target_request.get("request_id") != request_id:
         all_requests_list = load_requests_data()
-        target_request_idx = -1
+
         for idx, req in enumerate(all_requests_list):
             if req.get("request_id") == request_id:
                 target_request = req
-                target_request_idx = idx
+
                 context.user_data['admin_current_request_to_process'] = target_request
-                context.user_data['admin_current_request_idx_to_process'] = target_request_idx
+
                 break
 
     if not target_request:
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, "⚠️ Error: Could not find the request to approve. It might have been processed already.", parse_mode=None)
+
         await display_admin_pending_requests_menu(update, context)
         return
 
     if target_request.get("status") != "pending":
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, f"⚠️ Request for '{escape_md_v2(str(target_request.get('media_title')))}' is already '{escape_md_v2(str(target_request.get('status')))}'\\. No action taken\\.", parse_mode="MarkdownV2")
+
         await display_admin_request_details_view(update, context)
         return
 
@@ -346,6 +360,7 @@ async def admin_approve_request_callback(update: Update, context: ContextTypes.D
                 f"Failed to re-fetch Radarr movie details for approved request {request_id}: {e}")
     elif media_type == "tv":
         try:
+
             lookup_response = sonarr_api_get(
                 'get', f'/series/lookup', params={'term': f'tvdb:{media_id}'})
             if isinstance(lookup_response, list) and lookup_response:
@@ -362,6 +377,7 @@ async def admin_approve_request_callback(update: Update, context: ContextTypes.D
         updated = False
         for i in range(len(all_reqs)):
             if all_reqs[i].get("request_id") == request_id:
+
                 all_reqs[i]["status"] = "approved"
                 all_reqs[i]["status_timestamp"] = time.time()
                 all_reqs[i]["admin_notes"] = "Approved (manual add required due to detail fetch error)."
@@ -376,20 +392,26 @@ async def admin_approve_request_callback(update: Update, context: ContextTypes.D
         return
 
     flow_data_key = 'radarr_add_flow' if media_type == "movie" else 'sonarr_add_flow'
+
     context.user_data.pop(flow_data_key, None)
+
     context.user_data[flow_data_key] = {
         'movie_tmdb_id' if media_type == "movie" else 'show_tvdb_id': media_id,
         'movie_title' if media_type == "movie" else 'show_title': media_title,
         'movie_year' if media_type == "movie" else 'show_year': target_request.get('media_year'),
         'radarr_movie_object_from_lookup' if media_type == "movie" else 'sonarr_show_object_from_lookup': full_media_object_for_add_flow,
+
         'current_step': 'initial_choice_radarr' if media_type == "movie" else 'initial_choice_sonarr',
         'chat_id': admin_chat_id,
         'user_id': admin_chat_id,
+
         'username': update.effective_user.username or str(admin_chat_id),
+
         'main_menu_message_id': query.message.message_id,
         'approved_request_id': request_id,
         'approved_request_original_user_id': requesting_user_id,
         'approved_request_original_username': requesting_username,
+
         'initiator_action_data': f"{CallbackData.RADARR_SELECT_PREFIX.value}{media_id}" if media_type == "movie" else f"{CallbackData.SONARR_SELECT_PREFIX.value}{media_id}"
     }
 
@@ -417,6 +439,14 @@ async def admin_approve_request_callback(update: Update, context: ContextTypes.D
 async def admin_reject_request_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     admin_chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(admin_chat_id))
+
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Unauthorized attempt to reject request by chat_id {admin_chat_id} (Role: {user_role})")
+        await query.answer("Access Denied.", show_alert=True)
+        return ConversationHandler.END
+
     request_id = query.data.replace(
         CallbackData.CMD_ADMIN_REJECT_REQUEST_PREFIX.value, "")
     await query.answer()
@@ -455,6 +485,13 @@ async def admin_reject_request_callback(update: Update, context: ContextTypes.DE
 async def handle_rejection_reason_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     admin_chat_id = update.effective_chat.id
 
+    user_role = app_config_holder.get_user_role(str(admin_chat_id))
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Unauthorized attempt to provide rejection reason by chat_id {admin_chat_id} (Role: {user_role})")
+
+        return ConversationHandler.END
+
     if update.message and update.message.message_id:
         try:
             await context.bot.delete_message(chat_id=admin_chat_id, message_id=update.message.message_id)
@@ -473,7 +510,6 @@ async def handle_rejection_reason_input(update: Update, context: ContextTypes.DE
         'rejecting_request_title', "this request")
     media_title = str(
         media_title_raw) if media_title_raw is not None else "this request"
-    requesting_user_id = context.user_data.get('rejecting_request_user_id')
 
     if not request_id:
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, "⚠️ Error: No request selected for rejection.", parse_mode=None)
@@ -497,7 +533,6 @@ async def handle_rejection_reason_input(update: Update, context: ContextTypes.DE
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, escape_md_v2(rejection_feedback_raw), parse_mode="MarkdownV2")
         logger.info(
             f"Request ID {request_id} ('{media_title}') rejected by admin {admin_chat_id}. Reason: {reason_text}")
-
     else:
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, "⚠️ Request was not found or already processed.", parse_mode=None)
 
@@ -518,17 +553,27 @@ async def handle_rejection_reason_input(update: Update, context: ContextTypes.DE
         async def answer(self): pass
 
     if original_menu_msg_id and effective_user_obj and effective_chat_obj:
-        dummy_message = type('DummyMessage', (), {
-                             'chat_id': admin_chat_id, 'message_id': original_menu_msg_id, 'chat': effective_chat_obj})()
-        dummy_query = DummyQuery(
-            CallbackData.CMD_ADMIN_REQUESTS_MENU.value, dummy_message, effective_user_obj)
-        current_update_id = update.update_id if hasattr(
-            update, 'update_id') else 0
-        dummy_update = Update(update_id=current_update_id,
-                              callback_query=dummy_query)
+        dummy_message_obj = type('DummyMessage', (), {
+                                 'chat_id': admin_chat_id, 'message_id': original_menu_msg_id, 'chat': effective_chat_obj})()
 
-        await display_admin_pending_requests_menu(dummy_update, context, page=1)
+        from_user_for_dummy = update.message.from_user if update.message else effective_user_obj
+
+        dummy_query_obj = DummyQuery(
+            CallbackData.CMD_ADMIN_REQUESTS_MENU.value, dummy_message_obj, from_user_for_dummy)
+
+        current_update_id_val = update.update_id if hasattr(
+            update, 'update_id') else 0
+
+        dummy_update_obj = Update(
+            update_id=current_update_id_val, callback_query=dummy_query_obj)
+
+        dummy_update_obj.effective_user = from_user_for_dummy
+        dummy_update_obj.effective_chat = effective_chat_obj
+
+        await display_admin_pending_requests_menu(dummy_update_obj, context, page=1)
     else:
+        logger.warning(
+            "Could not construct dummy update to refresh admin pending menu after rejection.")
         await show_or_edit_main_menu(str(admin_chat_id), context)
 
     return ConversationHandler.END
@@ -536,6 +581,13 @@ async def handle_rejection_reason_input(update: Update, context: ContextTypes.DE
 
 async def cancel_rejection_reason(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     admin_chat_id = update.effective_chat.id
+
+    user_role = app_config_holder.get_user_role(str(admin_chat_id))
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Unauthorized attempt to cancel rejection by chat_id {admin_chat_id} (Role: {user_role})")
+        return ConversationHandler.END
+
     await send_or_edit_universal_status_message(context.bot, admin_chat_id, "Rejection process cancelled.", parse_mode=None)
     context.user_data.pop('rejecting_request_id', None)
     context.user_data.pop('rejecting_request_title', None)
@@ -556,23 +608,22 @@ async def cancel_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
     if original_menu_msg_id and effective_user_obj and effective_chat_obj:
         dummy_message_obj = type('DummyMessage', (), {
                                  'chat_id': admin_chat_id, 'message_id': original_menu_msg_id, 'chat': effective_chat_obj})()
-        from_user_obj = update.message.from_user if update.message else effective_user_obj
+        from_user_for_dummy = update.message.from_user if update.message else effective_user_obj
 
         dummy_query_obj = DummyQuery(
-            CallbackData.CMD_ADMIN_REQUESTS_MENU.value, dummy_message_obj, from_user_obj)
+            CallbackData.CMD_ADMIN_REQUESTS_MENU.value, dummy_message_obj, from_user_for_dummy)
 
-        current_update_id = update.update_id if hasattr(
+        current_update_id_val = update.update_id if hasattr(
             update, 'update_id') else 0
-        if update.message:
-            dummy_update_obj = Update(
-                update_id=current_update_id, message=update.message)
-            dummy_update_obj.callback_query = dummy_query_obj
-        else:
-            dummy_update_obj = Update(
-                update_id=current_update_id, callback_query=dummy_query_obj)
+        dummy_update_obj = Update(
+            update_id=current_update_id_val, callback_query=dummy_query_obj)
+        dummy_update_obj.effective_user = from_user_for_dummy
+        dummy_update_obj.effective_chat = effective_chat_obj
 
         await display_admin_pending_requests_menu(dummy_update_obj, context, page=1)
     else:
+        logger.warning(
+            "Could not construct dummy update to refresh admin pending menu after cancel rejection.")
         await show_or_edit_main_menu(str(admin_chat_id), context)
     return ConversationHandler.END
 
@@ -580,6 +631,7 @@ async def cancel_rejection_reason(update: Update, context: ContextTypes.DEFAULT_
 async def display_admin_history_requests_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 1) -> None:
     query = update.callback_query
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
     if query:
         await query.answer()
@@ -592,12 +644,15 @@ async def display_admin_history_requests_menu(update: Update, context: ContextTy
         elif query.data == CallbackData.CMD_ADMIN_REQUEST_HISTORY_MENU.value:
             page = 1
 
-    if not app_config_holder.is_primary_admin(str(chat_id)) and app_config_holder.get_user_role(str(chat_id)) != app_config_holder.ROLE_ADMIN:
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Unauthorized access attempt to admin request history by chat_id {chat_id} (Role: {user_role})")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied.", parse_mode=None)
         return
 
     all_requests = load_requests_data()
     processed_requests = [req for req in all_requests if req.get(
+
         "status") in ["approved", "rejected", "add_failed"]]
     processed_requests.sort(key=lambda r: r.get(
         "status_timestamp", 0), reverse=True)
@@ -662,6 +717,7 @@ async def display_admin_history_requests_menu(update: Update, context: ContextTy
             line1 = f"{media_type_symbol} *{escaped_title}* \\({escaped_year}\\) by {escaped_user}\n"
             line2 = f"  Status: {escaped_status} on {escaped_status_date}\n\n"
             menu_body_parts.append(line1 + line2)
+
             keyboard.append([InlineKeyboardButton(f"{display_title} - {req_status}",
                             callback_data=f"{CallbackData.CMD_ADMIN_VIEW_REQUEST_PREFIX.value}{req.get('request_id')}")])
 

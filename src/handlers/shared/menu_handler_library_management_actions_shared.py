@@ -35,6 +35,8 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
     if service_name == "Radarr":
         keyboard.append([InlineKeyboardButton("🗑️ Remove (No Blocklist)",
                         callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX.value}{item_id}")])
+        keyboard.append([InlineKeyboardButton("🚫 Blocklist Only",
+                        callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value}{item_id}")])
 
         keyboard.append([InlineKeyboardButton("🚫🔍 Blocklist & Search Again",
 
@@ -47,6 +49,8 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
     elif service_name == "Sonarr":
         keyboard.append([InlineKeyboardButton("🗑️ Remove (No Blocklist)",
                         callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX.value}{item_id}")])
+        keyboard.append([InlineKeyboardButton("🚫 Blocklist Only",
+                        callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value}{item_id}")])
 
         keyboard.append([InlineKeyboardButton("🚫🔍 Blocklist & Search Again",
 

@@ -1,3 +1,4 @@
+
 import logging
 import os
 import uuid
@@ -48,7 +49,6 @@ CB_CONFIRM_ADD_S = f"{SONARR_CB_PREFIX}confirm"
 CB_ADD_DEFAULT_S = f"{SONARR_CB_PREFIX}default"
 
 CB_SUBMIT_REQUEST_SONARR = f"{SONARR_CB_PREFIX}submit_request"
-
 CB_NO_OP_SONARR = f"{SONARR_CB_PREFIX}no_op"
 MAX_OVERVIEW_LENGTH_SONARR = 250
 
@@ -58,16 +58,13 @@ async def sonarr_show_selection_callback(update: Update, context: ContextTypes.D
     await query.answer()
 
     flow_data_key = 'sonarr_add_flow'
-
     flow_data_from_context_copy = context.user_data.get(
         flow_data_key, {}).copy()
-
     data_to_process = None
 
     if 'initiator_action_data' in flow_data_from_context_copy:
         data_to_process = flow_data_from_context_copy.pop(
             'initiator_action_data')
-
         context.user_data[flow_data_key] = flow_data_from_context_copy
         logger.debug(
             f"Sonarr selection: Using initiator_action_data: {data_to_process}")
@@ -79,7 +76,6 @@ async def sonarr_show_selection_callback(update: Update, context: ContextTypes.D
     user_id = query.from_user.id
     username = query.from_user.username or query.from_user.first_name or str(
         user_id)
-
     user_role = app_config_holder.get_user_role(str(chat_id))
 
     try:
@@ -104,6 +100,13 @@ async def sonarr_show_selection_callback(update: Update, context: ContextTypes.D
             raise ValueError("Invalid TVDB ID format in callback data.")
         tvdb_id = int(tvdb_id_str)
 
+        if not app_config_holder.is_sonarr_enabled():
+            logger.info(
+                f"Sonarr show selection by {chat_id}, but Sonarr feature is disabled.")
+            await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Sonarr API features are disabled.", parse_mode=None)
+            await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
+            return
+
         show_api_details = None
         raw_overview = "Overview not available."
         try:
@@ -111,8 +114,10 @@ async def sonarr_show_selection_callback(update: Update, context: ContextTypes.D
                 'get', f'/series/lookup', params={'term': f'tvdb:{tvdb_id}'})
             if isinstance(lookup_result, list) and lookup_result:
                 show_api_details = lookup_result[0]
+
             elif isinstance(lookup_result, dict) and lookup_result.get("tvdbId"):
                 show_api_details = lookup_result
+
             if not show_api_details or not show_api_details.get("tvdbId"):
                 logger.error(
                     f"Could not fetch valid show details for TVDB ID {tvdb_id}. Response: {lookup_result}")
@@ -125,45 +130,48 @@ async def sonarr_show_selection_callback(update: Update, context: ContextTypes.D
         except Exception as e_lookup:
             logger.warning(
                 f"Could not pre-fetch full show details for Sonarr (TVDB ID {tvdb_id}): {e_lookup}", exc_info=True)
-            await send_or_edit_universal_status_message(context.bot, chat_id, f"⚠️ Error: Could not fetch details for selected show \\(TVDB ID: {tvdb_id}\\)\\.", parse_mode="MarkdownV2")
+            await send_or_edit_universal_status_message(context.bot, chat_id, f"⚠️ Error: Could not fetch details for selected show \\(TVDB ID: {tvdb_id}\\)\\. Check bot logs\\.", parse_mode="MarkdownV2")
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
             return
 
-        current_flow_data_for_update = context.user_data.get(flow_data_key, {})
-        current_flow_data_for_update.update({
+        active_flow_data = context.user_data.get(flow_data_key, {})
+        active_flow_data.update({
             'show_tvdb_id': show_api_details['tvdbId'],
             'show_title': show_api_details.get('title', 'Unknown Title'),
             'show_year': show_api_details.get('year'),
             'raw_overview': raw_overview,
             'sonarr_show_object_from_lookup': show_api_details,
             'current_step': 'initial_choice_sonarr',
-            'chat_id': chat_id,
-            'user_id': user_id,
-            'username': username,
+            'chat_id': chat_id, 'user_id': user_id, 'username': username,
             'main_menu_message_id': query.message.message_id
         })
 
         if 'approved_request_id' in flow_data_from_context_copy:
-            current_flow_data_for_update['approved_request_id'] = flow_data_from_context_copy['approved_request_id']
-            current_flow_data_for_update['approved_request_original_user_id'] = flow_data_from_context_copy['approved_request_original_user_id']
-            current_flow_data_for_update['approved_request_original_username'] = flow_data_from_context_copy['approved_request_original_username']
-
-        context.user_data[flow_data_key] = current_flow_data_for_update
-        active_flow_data = context.user_data[flow_data_key]
+            active_flow_data['approved_request_id'] = flow_data_from_context_copy['approved_request_id']
+            active_flow_data['approved_request_original_user_id'] = flow_data_from_context_copy['approved_request_original_user_id']
+            active_flow_data['approved_request_original_username'] = flow_data_from_context_copy['approved_request_original_username']
+        context.user_data[flow_data_key] = active_flow_data
 
         keyboard = []
         is_from_admin_approval = 'approved_request_id' in active_flow_data
 
-        if user_role == app_config_holder.ROLE_ADMIN and (is_admin_add_flow or is_from_admin_approval):
-            keyboard = [
-                [InlineKeyboardButton("Add with Defaults",
-                                      callback_data=CB_ADD_DEFAULT_S)],
-                [InlineKeyboardButton("Customize Settings",
-                                      callback_data=CB_START_CUSTOMIZE_SONARR)],
-                [InlineKeyboardButton(
-                    "Cancel Add", callback_data=CallbackData.SONARR_CANCEL.value)]
-            ]
-        elif (user_role == app_config_holder.ROLE_STANDARD_USER or user_role == app_config_holder.ROLE_ADMIN) and is_user_request_flow and not is_from_admin_approval:
+        if is_admin_add_flow:
+            if user_role != app_config_holder.ROLE_ADMIN:
+                logger.error(
+                    f"Sonarr: Non-admin user ({chat_id}, Role: {user_role}) in SONARR_SELECT_PREFIX flow. This should not happen.")
+                keyboard = [[InlineKeyboardButton(
+                    "Cancel Operation", callback_data=CallbackData.SONARR_CANCEL.value)]]
+            else:
+                keyboard = [
+                    [InlineKeyboardButton(
+                        "Add with Defaults", callback_data=CB_ADD_DEFAULT_S)],
+                    [InlineKeyboardButton(
+                        "Customize Settings", callback_data=CB_START_CUSTOMIZE_SONARR)],
+                    [InlineKeyboardButton(
+                        "Cancel Add", callback_data=CallbackData.SONARR_CANCEL.value)]
+                ]
+
+        elif is_user_request_flow:
             keyboard = [
                 [InlineKeyboardButton("✅ Submit Request",
                                       callback_data=CB_SUBMIT_REQUEST_SONARR)],
@@ -172,42 +180,44 @@ async def sonarr_show_selection_callback(update: Update, context: ContextTypes.D
             ]
         else:
             logger.warning(
-                f"sonarr_show_selection_callback: Role/flow mismatch. Role: {user_role}, is_admin_add: {is_admin_add_flow}, is_user_request: {is_user_request_flow}, is_from_admin_approval: {is_from_admin_approval}")
+                f"sonarr_show_selection_callback: Role/flow mismatch. Role: {user_role}, is_admin_add_flow: {is_admin_add_flow}, is_user_request_flow: {is_user_request_flow}, is_from_admin_approval: {is_from_admin_approval}")
             await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Action not available for your role or current flow.", parse_mode=None)
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
             return
 
         reply_markup = InlineKeyboardMarkup(keyboard)
-
         formatted_title_year = format_media_title_for_md2(
-            active_flow_data['show_title'],
-            active_flow_data['show_year']
-        )
+            active_flow_data['show_title'], active_flow_data['show_year'])
         formatted_overview = format_overview_for_md2(
-            active_flow_data['raw_overview'],
-            MAX_OVERVIEW_LENGTH_SONARR
-        )
+            active_flow_data['raw_overview'], MAX_OVERVIEW_LENGTH_SONARR)
 
-        msg_text = f"🎞️ {formatted_title_year}\n\n"
-        msg_text += f"{formatted_overview}\n\n"
-        if user_role == app_config_holder.ROLE_ADMIN and (is_admin_add_flow or is_from_admin_approval):
+        msg_text_parts = [
+            f"🎞️ {formatted_title_year}\n\n", f"{formatted_overview}\n\n"]
+        if is_admin_add_flow and user_role == app_config_holder.ROLE_ADMIN:
             prompt_action_text = "add to Sonarr"
             if is_from_admin_approval:
-                prompt_action_text = f"add to Sonarr (fulfilling request from {escape_md_v2(str(active_flow_data.get('approved_request_original_username', 'user')))})"
-            msg_text += escape_md_v2(f"Choose how to {prompt_action_text}:")
-        else:
-            msg_text += escape_md_v2("Confirm your request for this TV show:")
+                original_user_disp = escape_md_v2(
+                    str(active_flow_data.get('approved_request_original_username', 'user')))
+                prompt_action_text = f"add to Sonarr (fulfilling request from {original_user_disp})"
+            msg_text_parts.append(escape_md_v2(
+                f"Choose how to {prompt_action_text}:"))
+        elif is_user_request_flow:
+            msg_text_parts.append(escape_md_v2(
+                "Confirm your request for this TV show:"))
+
+        final_msg_text = "".join(msg_text_parts)
 
         await context.bot.edit_message_text(
-            chat_id=chat_id, message_id=query.message.message_id, text=msg_text,
+            chat_id=chat_id, message_id=query.message.message_id, text=final_msg_text,
             reply_markup=reply_markup, parse_mode="MarkdownV2"
         )
         context.bot_data[f"menu_message_content_{chat_id}_{query.message.message_id}"] = (
-            msg_text, reply_markup.to_json())
+            final_msg_text, reply_markup.to_json())
     except (IndexError, ValueError, KeyError) as e:
         logger.error(
             f"Error in Sonarr show selection processing: {e}", exc_info=True)
-        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Error processing Sonarr selection.", parse_mode=None)
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Error processing Sonarr selection. Please try again.", parse_mode=None)
+
         await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
 
 
@@ -218,13 +228,14 @@ async def display_sonarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
 
     title_year_display = format_media_title_for_md2(
         flow_data['show_title'], flow_data.get('show_year'))
-    text = f"🎞️ Customize Add: {title_year_display}\n\n"
+    text_parts = [f"🎞️ Customize Add: {title_year_display}\n\n"]
     keyboard_buttons = []
     step_counter = 0
 
     if step == 'select_root_folder_s':
         step_counter = 1
-        text += escape_md_v2(f"**Step {step_counter}: Select Root Folder**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Root Folder**"))
         root_folders = get_sonarr_root_folders()
         if not root_folders:
             err_text = "Error: Could not fetch root folders from Sonarr."
@@ -234,9 +245,11 @@ async def display_sonarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
         for rf in root_folders:
             keyboard_buttons.append([InlineKeyboardButton(os.path.basename(
                 rf['path'].rstrip('/\\')), callback_data=f"{CB_SELECT_ROOT_S}{rf['path']}")])
+
     elif step == 'select_quality_profile_s':
         step_counter = 2
-        text += escape_md_v2(f"**Step {step_counter}: Select Quality Profile**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Quality Profile**"))
         quality_profiles = get_sonarr_quality_profiles()
         if not quality_profiles:
             err_text = "Error: Could not fetch quality profiles from Sonarr."
@@ -246,49 +259,64 @@ async def display_sonarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
         for qp in quality_profiles:
             keyboard_buttons.append([InlineKeyboardButton(
                 qp['name'], callback_data=f"{CB_SELECT_QUALITY_S}{qp['id']}")])
+
     elif step == 'select_language_profile_s':
         step_counter = 3
-        text += escape_md_v2(f"**Step {step_counter}: Select Language Profile**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Language Profile**"))
         lang_profiles = get_sonarr_language_profiles()
         if not lang_profiles:
-            err_text = "Error: Could not fetch language profiles from Sonarr."
-            if message_id:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=escape_md_v2(err_text), reply_markup=None, parse_mode="MarkdownV2")
+            logger.warning(
+                "No language profiles found via /languageprofile or /profile. Using hardcoded default or skipping step.")
+
+            flow_data['language_profile_id_s'] = get_default_language_profile_id()
+
+            flow_data['current_step'] = 'select_series_type_s'
+
+            await display_sonarr_customization_step(context, flow_data)
             return
         for lp in lang_profiles:
             keyboard_buttons.append([InlineKeyboardButton(
                 lp['name'], callback_data=f"{CB_SELECT_LANGUAGE_S}{lp['id']}")])
+
     elif step == 'select_series_type_s':
         step_counter = 4
-        text += escape_md_v2(f"**Step {step_counter}: Select Series Type**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Series Type**"))
         for opt in get_series_type_options():
             keyboard_buttons.append([InlineKeyboardButton(
                 opt['label'], callback_data=f"{CB_SELECT_SERIES_TYPE_S}{opt['value']}")])
+
     elif step == 'select_season_folder_s':
         step_counter = 5
-        text += escape_md_v2(f"**Step {step_counter}: Use Season Folders?**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Use Season Folders?**"))
         keyboard_buttons.append([InlineKeyboardButton(
             "Yes", callback_data=f"{CB_SELECT_SEASON_FOLDER_S}true")])
         keyboard_buttons.append([InlineKeyboardButton(
             "No", callback_data=f"{CB_SELECT_SEASON_FOLDER_S}false")])
+
     elif step == 'select_monitor_episodes_s':
         step_counter = 6
-        text += escape_md_v2(f"**Step {step_counter}: Monitor Which Episodes?**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Monitor Which Episodes?**"))
         for opt in get_episode_monitor_options():
             keyboard_buttons.append([InlineKeyboardButton(
                 opt['label'], callback_data=f"{CB_SELECT_MONITOR_EPS_S}{opt['value']}")])
+
     elif step == 'select_search_missing_s':
         step_counter = 7
-        text += escape_md_v2(
-            f"**Step {step_counter}: Search for missing episodes on add?**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Search for missing episodes on add?**"))
         keyboard_buttons.append([InlineKeyboardButton(
             "Yes, search now", callback_data=f"{CB_SELECT_SEARCH_MISSING_S}true")])
         keyboard_buttons.append([InlineKeyboardButton(
             "No, don't search", callback_data=f"{CB_SELECT_SEARCH_MISSING_S}false")])
+
     elif step == 'select_tags_s':
         step_counter = 8
-        text += escape_md_v2(
-            f"**Step {step_counter}: Select Tags (Optional)**\n_Choose multiple then 'Done with Tags'_")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Tags (Optional)**\n_Choose multiple then 'Done with Tags'_"))
         all_tags = get_sonarr_tags()
         current_tags_ids = flow_data.get('tags_s', [])
         if all_tags:
@@ -302,9 +330,11 @@ async def display_sonarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
                     prefix + tag['label'], callback_data=f"{CB_SELECT_TAG_S}{tag['id']}")])
         keyboard_buttons.append([InlineKeyboardButton(
             "Done with Tags / Skip Tags", callback_data=CB_SKIP_TAGS_S)])
+
     elif step == 'confirm_add_s':
         step_counter = 9
-        text += escape_md_v2(f"**Step {step_counter}: Confirm Add**") + "\n\n"
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Confirm Add**") + "\n\n")
         rf_path = flow_data.get('root_folder_path_s',
                                 get_default_root_folder_path() or "Not Set")
         qp_id = flow_data.get('quality_profile_id_s',
@@ -319,61 +349,54 @@ async def display_sonarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
 
         rf_display = os.path.basename(rf_path.rstrip(
             '/\\')) if rf_path != "Not Set" else "Default (Not Set)"
-
-        qp_name_display = "Default (Not Set)"
-        if qp_id:
-            sel_qp_confirm = next(
-                (q['name'] for q in get_sonarr_quality_profiles() if q['id'] == qp_id), None)
-            qp_name_display = sel_qp_confirm if sel_qp_confirm else qp_name_display
-
-        lp_name_display = "Default (Not Set)"
-        if lp_id:
-            sel_lp_confirm = next(
-                (l['name'] for l in get_sonarr_language_profiles() if l['id'] == lp_id), None)
-            lp_name_display = sel_lp_confirm if sel_lp_confirm else lp_name_display
-
+        qp_name_display = next((q['name'] for q in get_sonarr_quality_profiles(
+        ) if q['id'] == qp_id), "Default (Not Set)") if qp_id else "Default (Not Set)"
+        lp_name_display = next((l['name'] for l in get_sonarr_language_profiles(
+        ) if l['id'] == lp_id), "Default (Not Set)") if lp_id else "Default (Not Set)"
         stype_display = next((s['label'] for s in get_series_type_options(
         ) if s['value'] == stype), stype.capitalize())
         sfolder_display = "Yes" if sfolder else "No"
         moneps_display = next((m['label'] for m in get_episode_monitor_options(
         ) if m['value'] == moneps), moneps.capitalize())
         searchmiss_display = "Yes" if searchmiss else "No"
+        tags_str_display = ", ".join([t['label'] for t in get_sonarr_tags(
+        ) if t['id'] in tags_ids]) if tags_ids else "None"
 
-        tags_str_display = "None"
-        if tags_ids:
-            sel_tag_labels = [t['label']
-                              for t in get_sonarr_tags() if t['id'] in tags_ids]
-            tags_str_display = ", ".join(
-                sel_tag_labels) if sel_tag_labels else tags_str_display
-
-        text += format_selected_option_for_md2("Root Folder", rf_display)
-        text += format_selected_option_for_md2(
-            "Quality Profile", qp_name_display)
-        text += format_selected_option_for_md2(
-            "Language Profile", lp_name_display)
-        text += format_selected_option_for_md2("Series Type", stype_display)
-        text += format_selected_option_for_md2(
-            "Season Folders", sfolder_display)
-        text += format_selected_option_for_md2(
-            "Monitor Episodes", moneps_display)
-        text += format_selected_option_for_md2(
-            "Search on Add", searchmiss_display)
-        text += format_selected_option_for_md2("Tags", tags_str_display)
+        text_parts.append(format_selected_option_for_md2(
+            "Root Folder", rf_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Quality Profile", qp_name_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Language Profile", lp_name_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Series Type", stype_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Season Folders", sfolder_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Monitor Episodes", moneps_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Search on Add", searchmiss_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Tags", tags_str_display))
         keyboard_buttons.append([InlineKeyboardButton(
             "✅ Confirm and Add Show", callback_data=CB_CONFIRM_ADD_S)])
 
     keyboard_buttons.append([InlineKeyboardButton(
         "Cancel Add", callback_data=CallbackData.SONARR_CANCEL.value)])
     reply_markup = InlineKeyboardMarkup(keyboard_buttons)
+    final_text_display = "".join(text_parts)
 
     try:
         if message_id:
-            await context.bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, reply_markup=reply_markup, parse_mode="MarkdownV2")
+            await context.bot.edit_message_text(
+                chat_id=chat_id, message_id=message_id, text=final_text_display,
+                reply_markup=reply_markup, parse_mode="MarkdownV2"
+            )
             context.bot_data[f"menu_message_content_{chat_id}_{message_id}"] = (
-                text, reply_markup.to_json())
+                final_text_display, reply_markup.to_json())
         else:
             logger.error(
-                "Sonarr customization step called without main_menu_message_id. This indicates a flow error.")
+                "Sonarr customization step called without main_menu_message_id.")
             await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Flow error: Cannot display customization options.", parse_mode=None)
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
             return
@@ -382,6 +405,7 @@ async def display_sonarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
             logger.error(
                 f"Error displaying Sonarr customization step {step}: {e}", exc_info=True)
             await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ An error occurred displaying Sonarr options. Please try again.", parse_mode=None)
+
             context.user_data.pop('sonarr_add_flow', None)
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
     except Exception as e:
@@ -407,6 +431,17 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
         return
 
     chat_id = flow_data['chat_id']
+    user_role = app_config_holder.get_user_role(
+        str(chat_id))
+
+    if data != CB_SUBMIT_REQUEST_SONARR and user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Non-admin {chat_id} (Role: {user_role}) in Sonarr customization callback for non-request action '{data}'. Unauthorized.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied to Sonarr customization.", parse_mode=None)
+        context.user_data.pop(flow_data_key, None)
+        await show_or_edit_main_menu(str(chat_id), context)
+        return
+
     user_id = flow_data.get('user_id')
     username = flow_data.get('username')
 
@@ -438,37 +473,30 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
             from src.handlers.admin_requests.menu_handler_admin_requests import display_admin_pending_requests_menu
             dummy_message_obj = type('DummyMessage', (), {'chat_id': chat_id, 'message_id': flow_data.get(
                 'main_menu_message_id'), 'chat': type('DummyChat', (), {'id': chat_id})()})()
-            dummy_callback_query_obj = type('DummyQuery', (), {
-                                            'data': CallbackData.CMD_ADMIN_REQUESTS_MENU.value, 'message': dummy_message_obj, 'from_user': query.from_user, 'answer': query.answer})()
-
-            effective_chat_obj = query.message.chat if query.message else type(
+            from_user_for_dummy = query.from_user if query and query.from_user else context.bot
+            effective_chat_for_dummy = query.message.chat if query and query.message else type(
                 'DummyChat', (), {'id': chat_id})()
-            dummy_update_obj = type('DummyUpdate', (), {
-                                    'callback_query': dummy_callback_query_obj, 'effective_chat': effective_chat_obj, 'effective_user': query.from_user})()
+            dummy_callback_query_obj = type('DummyQuery', (), {'data': CallbackData.CMD_ADMIN_REQUESTS_MENU.value, 'message': dummy_message_obj,
+                                            'from_user': from_user_for_dummy, 'answer': (lambda: None) if not query else query.answer})()
+            dummy_update_obj = type('DummyUpdate', (), {'callback_query': dummy_callback_query_obj,
+                                    'effective_chat': effective_chat_for_dummy, 'effective_user': from_user_for_dummy})()
             await display_admin_pending_requests_menu(dummy_update_obj, context)
         else:
             await show_or_edit_main_menu(str(chat_id), context)
         return
     elif data == CB_SUBMIT_REQUEST_SONARR:
         await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Submitting your request for '{escape_md_v2(flow_data['show_title'])}'\\.\\.\\.", parse_mode="MarkdownV2")
-
         request_id = str(uuid.uuid4())
         new_request = {
-            "request_id": request_id,
-            "user_id": user_id,
-            "username": username,
-            "media_type": "tv",
-            "media_tvdb_id": flow_data['show_tvdb_id'],
-            "media_title": flow_data['show_title'],
-            "media_year": flow_data.get('show_year'),
-            "request_timestamp": time.time(),
-            "status": "pending",
-            "status_timestamp": time.time(),
-            "admin_notes": None
+            "request_id": request_id, "user_id": user_id, "username": username,
+            "media_type": "tv", "media_tvdb_id": flow_data['show_tvdb_id'],
+            "media_title": flow_data['show_title'], "media_year": flow_data.get('show_year'),
+            "request_timestamp": time.time(), "status": "pending",
+            "status_timestamp": time.time(), "admin_notes": None
         }
-
         requests_list = load_requests_data()
         requests_list.append(new_request)
+        result_msg_raw = ""
         if save_requests_data(requests_list):
             result_msg_raw = f"✅ Your request for '{flow_data['show_title']}' has been submitted for admin approval."
             logger.info(
@@ -484,6 +512,14 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
         return
 
     elif data == CB_ADD_DEFAULT_S or data == CB_CONFIRM_ADD_S:
+        if user_role != app_config_holder.ROLE_ADMIN:
+            logger.warning(
+                f"Non-admin {chat_id} attempting admin-only Sonarr add action '{data}'. Denying.")
+            await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. This action is for administrators.", parse_mode=None)
+            context.user_data.pop(flow_data_key, None)
+            await show_or_edit_main_menu(str(chat_id), context)
+            return
+
         await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Processing Sonarr add for '{escape_md_v2(flow_data['show_title'])}'\\.\\.\\.", parse_mode="MarkdownV2")
         add_params = {
             'tvdb_id': flow_data['show_tvdb_id'],
@@ -516,11 +552,11 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
         if not add_params['quality_profile_id'] or not add_params['root_folder_path'] or not add_params['language_profile_id']:
             error_detail_raw = ""
             if not add_params['quality_profile_id']:
-                error_detail_raw += "Quality profile not found. "
+                error_detail_raw += "Quality profile missing. "
             if not add_params['root_folder_path']:
-                error_detail_raw += "Root folder not found. "
+                error_detail_raw += "Root folder missing. "
             if not add_params['language_profile_id']:
-                error_detail_raw += "Language profile not found. "
+                error_detail_raw += "Language profile missing. "
             result_msg_raw = f"⚠️ Error: {error_detail_raw}Check Sonarr/bot settings or logs."
             logger.error(
                 f"Missing critical params for Sonarr add. QP: {add_params['quality_profile_id']}, RF: {add_params['root_folder_path']}, LP: {add_params['language_profile_id']}")
@@ -532,7 +568,6 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
                         req["admin_notes"] = f"Admin approved, but auto-add failed: {error_detail_raw}"
                         req["status_timestamp"] = time.time()
                         save_requests_data(all_reqs)
-
                         break
         else:
             result_msg_raw = sonarr_add_show_func(**add_params)
@@ -540,19 +575,15 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
                 success_keywords = ["successfully", "already in Sonarr"]
                 is_add_successful = any(
                     keyword.lower() in result_msg_raw.lower() for keyword in success_keywords)
-
                 all_reqs = load_requests_data()
-                updated_req = False
                 for req_idx, req_item in enumerate(all_reqs):
                     if req_item.get("request_id") == approved_request_id:
                         all_reqs[req_idx]["status"] = "approved" if is_add_successful else "add_failed"
                         all_reqs[req_idx][
                             "admin_notes"] = f"Admin approved. Sonarr response: {result_msg_raw}"
                         all_reqs[req_idx]["status_timestamp"] = time.time()
-                        updated_req = True
+                        save_requests_data(all_reqs)
                         break
-                if updated_req:
-                    save_requests_data(all_reqs)
 
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(result_msg_raw), parse_mode="MarkdownV2")
         context.user_data.pop(flow_data_key, None)
@@ -564,9 +595,8 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
             from_user_for_dummy = query.from_user if query and query.from_user else context.bot
             effective_chat_for_dummy = query.message.chat if query and query.message else type(
                 'DummyChat', (), {'id': chat_id})()
-
-            dummy_callback_query_obj = type('DummyQuery', (), {'data': CallbackData.CMD_ADMIN_REQUESTS_MENU.value,
-                                            'message': dummy_message_obj, 'from_user': from_user_for_dummy, 'answer': query.answer if query else (lambda: None)})()
+            dummy_callback_query_obj = type('DummyQuery', (), {'data': CallbackData.CMD_ADMIN_REQUESTS_MENU.value, 'message': dummy_message_obj,
+                                            'from_user': from_user_for_dummy, 'answer': (lambda: None) if not query else query.answer})()
             dummy_update_obj = type('DummyUpdate', (), {'callback_query': dummy_callback_query_obj,
                                     'effective_chat': effective_chat_for_dummy, 'effective_user': from_user_for_dummy})()
             await display_admin_pending_requests_menu(dummy_update_obj, context)
@@ -625,5 +655,5 @@ async def sonarr_customization_callback(update: Update, context: ContextTypes.DE
         logger.error(
             f"Sonarr customization callback reached unhandled state with data: {data}")
         context.user_data.pop(flow_data_key, None)
-        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Unexpected error in Sonarr flow.", parse_mode=None)
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Unexpected error in Sonarr flow. Please start over.", parse_mode=None)
         await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)

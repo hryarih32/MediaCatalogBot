@@ -1,100 +1,113 @@
-# Media Catalog Telegram Bot - User Guide (v2.0.0)
+# Media Catalog Telegram Bot - Bot Usage Guide
 
----
+This guide explains how to use the various features of the Media Catalog Telegram Bot.
 
-This guide explains how to interact with the Media Catalog Telegram Bot once it has been set up and is running. The bot's primary configuration is stored in `data/config.py`.
+## Initial Setup
 
-## User Roles
+1.  Ensure you have followed the `SETUP_INSTRUCTIONS.md` to install and configure the bot.
+2.  The user whose Telegram `CHAT_ID` is set in `data/config.py` will be the **Primary Administrator**.
 
-*   **Primary Administrator:** The user whose Telegram Chat ID is set in the `CHAT_ID` field of `config.py`. This user has full access to all features, including bot settings via `/settings`.
-*   **Administrator (Admin):** (Functionally the same as Primary Admin for most features in v2.0.0, except `/settings`). Future versions will allow adding more Admins via a user management system.
-*   **Standard User:** (Currently, any user interacting with the bot who is not the Primary Admin). Can request media and view their own requests. Cannot access most control features or bot settings.
-*   **Unknown User:** Users who have not been assigned a role. They will have very limited interaction (e.g., a prompt to request access in future versions).
+## Roles
 
-## Core Telegram Commands
+*   **Primary Administrator:** Full control, including `/settings` and managing dynamic launchers.
+*   **Administrator (`ADMIN`):** Access to most control features, media addition, and management of user media/access requests.
+*   **Standard User (`STANDARD_USER`):** Can search/request media, view their requests, and search/browse Plex content including details.
+*   **Unknown User (`UNKNOWN`):** New users; can only "Request Access".
 
-*   `/start` or `/home`: Displays/refreshes the main interactive menu. The menu content and available actions will vary based on your user role.
-*   `/settings`: (Primary Admin Only) Opens the graphical configuration window on the bot's host machine to modify `data/config.py`.
-*   `/status`: (Admins and Standard Users) Updates the bot's "universal status message" for your chat, which provides context, prompts, or results of actions.
+## Common Commands
 
-## Interacting with Menus
+*   `/start` or `/home`: Displays the main menu. For unknown users, this shows the "Request Access" option.
+*   `/settings`: (Primary Administrator only) Opens the GUI for bot configuration, user management, and dynamic launcher setup.
+*   `/status`: (Administrators and Standard Users) Refreshes the universal status message at the bottom of your chat with the bot.
 
-The bot primarily uses **inline keyboard buttons** attached to messages.
-*   Tap these buttons to navigate through menus and trigger actions.
-*   The main menu message (the one with the most buttons) usually edits itself to show new options.
-*   The "universal status message" is typically the last message sent by the bot *without* buttons. It provides feedback, prompts for input (like search terms or rejection reasons), and shows results of operations.
+## Main Menu Options
 
-## Main Menu Structure (Examples by Role)
+The main menu buttons adapt based on your assigned role and enabled features.
 
-*(Visible options depend on your role and the features enabled in `data/config.py`)*
+### For Standard Users
 
-### Primary Administrator / Administrator View:
+*   **"➕ Request Movie" / "➕ Request TV Show"**:
+    1.  Click the button.
+    2.  The bot will prompt you to enter the movie or TV show name.
+    3.  Type the name and send it.
+    4.  A list of search results will appear as buttons.
+    5.  Click a result to see a confirmation screen.
+    6.  Click "✅ Submit Request" to send your request for admin approval.
+*   **"🔍 Search Plex"**:
+    1.  Click the button.
+    2.  The bot will prompt you to enter your search query.
+    3.  Type the query and send it.
+    4.  A list of search results from Plex will appear as buttons.
+    5.  Click a result (movie or show) to view its details.
+    6.  If it's a show, you can navigate to its seasons and then to individual episode details.
+*   **"📋 My Requests"**:
+    *   View a paginated list of your submitted media requests and their current status (Pending, Approved, Rejected, Add Failed).
 
-The main menu for Admins will typically show:
+### For Administrators (ADMIN & Primary Administrator)
 
-1.  **Bot Status Header:** Version, service health indicators (Plex, Sonarr, Radarr, ABDM), and bot uptime.
-2.  **Media Addition:**
-    *   `➕ Add Movie (Admin)`: Directly add movies to Radarr.
-    *   `➕ Add TV Show (Admin)`: Directly add TV shows to Sonarr.
-3.  **Download Management:**
-    *   `📥 Add Download (ABDM)`: (Primary Admin Only) Submit a URL to AB Download Manager.
-4.  **Request Management:**
-    *   `📮 Admin Requests (X)`: View and manage pending requests from Standard Users (X is the count of pending requests). This section includes options to view request details, approve, or reject them.
-    *   `📜 View History` (within Admin Requests): See a log of approved and rejected requests.
-5.  **Personal Requests (Admin):**
-    *   `📋 My Requests`: If an Admin uses the "Request" flow (e.g., for testing), their own requests appear here, similar to a Standard User.
-6.  **Service Controls:**
-    *   `🎬 Radarr Controls`: Access Radarr-specific functions like viewing the download queue or library maintenance.
-    *   `🎞️ Sonarr Controls`: Access Sonarr-specific functions like viewing the queue, wanted episodes, or library maintenance.
-    *   `🌐 Plex Controls`: Access Plex functions like viewing "Now Playing," "Recently Added," searching content, or server/library tools.
-7.  **System & Launchers:**
-    *   `🚀 Launchers & Scripts`: Launch configured applications or custom scripts on the bot's host.
-    *   `🖥️ PC Control`: If enabled, control PC media, sound, or system power.
-8.  **Bot Configuration:**
-    *   `⚙️ Bot Settings`: (Primary Admin Only) Opens the GUI to edit `data/config.py`.
+*   **"➕ Add Movie" / "➕ Add TV Show"**:
+    1.  Click the button.
+    2.  The bot will prompt you to enter the movie or TV show name.
+    3.  Type the name and send it.
+    4.  A list of search results will appear as buttons.
+    5.  Click a result to see options:
+        *   "Add with Defaults": Adds the media using pre-defined quality/path settings.
+        *   "Customize Settings": Allows you to choose root folder, quality profile, tags, etc. before adding.
+        *   "Cancel Add".
+*   **"📥 Add Download (ABDM)"** (Primary Administrator only, if ABDM is enabled):
+    1.  Click the button.
+    2.  The bot prompts for a URL.
+    3.  Paste the direct download URL and send. The download will be added to AB Download Manager.
+*   **"📮 Media Requests (X)"**:
+    *   `(X)` shows the number of pending user media requests.
+    *   View a list of pending requests.
+    *   Click a request to see details and options to "✅ Approve" or "❌ Reject".
+        *   **Approve:** Initiates the standard admin add flow for that media item.
+        *   **Reject:** Allows providing an optional reason for rejection.
+    *   Access "📜 View History" for previously processed requests.
+*   **"🔑 User Access (X)"**:
+    *   `(X)` shows the number of pending user access requests.
+    *   View a list of users requesting access.
+    *   Click "✅ Approve" for a user, then choose to assign them as `STANDARD_USER` or `ADMIN`.
+    *   Click "❌ Deny" to reject an access request.
+*   **"🎬 Radarr Controls"** (if Radarr is enabled):
+    *   **"📥 View Download Queue"**: See items currently downloading in Radarr. Click an item for actions (Remove, Blocklist Only, Blocklist & Search).
+    *   **"🛠️ Library Maintenance"**:
+        *   "🔄 Scan Files (Disk Sync)": Refresh Radarr's view of movie files on disk.
+        *   "♻️ Update All Metadata": Refresh metadata for all movies.
+        *   "✍️ Rename All Movie Files": Trigger Radarr's file renaming task.
+*   **"🎞️ Sonarr Controls"** (if Sonarr is enabled):
+    *   **"📥 View Download Queue"**: See items currently downloading in Sonarr. Click an item for actions.
+    *   **"🎯 View Wanted Episodes"**: See a list of episodes Sonarr is actively searching for. Click an episode to trigger an individual search.
+    *   **"🛠️ Library Maintenance"**:
+        *   "🔄 Scan Files (Disk Sync)": Refresh Sonarr's view of series files.
+        *   "♻️ Update All Metadata": Refresh metadata for all series.
+        *   "✍️ Rename All Episode Files": Trigger Sonarr's file renaming task.
+*   **"🌐 Plex Controls"** (if Plex is enabled):
+    *   **"📺 View Now Playing"**: See current Plex streams and stop them.
+    *   **"🆕 View Recently Added"**: Browse recently added items per library.
+    *   **"🔍 Search Plex Content"**: (This is within Plex Controls for Admins) Search and navigate Plex content.
+    *   **"🛠️ Library & Server Tools"**:
+        *   "🔄 Scan Libraries": Initiate a scan for new/updated media in Plex libraries.
+        *   "♻️ Refresh Library Metadata": Refresh all metadata for selected Plex libraries.
+        *   "🔧 Server Maintenance & Info":
+            *   "🧹 Clean Bundles"
+            *   "🗑️ Empty Trash..." (for specific or all libraries)
+            *   "⚙️ Optimize Database"
+            *   "ℹ️ Server Info": View Plex server details and library/service statistics.
+*   **"🖥️ PC Control"** (if PC Control is enabled):
+    *   **"🎧 Media & Sound"**: Control media playback (play/pause, next, prev, stop, seek) and system volume.
+    *   **"🔌 System Power"**: Initiate PC shutdown or restart (requires two-click confirmation).
+*   **"🚀 Launchers"** (Primary Administrator only):
+    *   Displays a menu of dynamically configured launchers and scripts.
+    *   Launchers can be organized into subgroups.
+    *   Click a launcher to execute the application or script on the bot's host machine.
+    *   Manage launchers via the `/settings` GUI.
 
-### Standard User View:
+## Notes
 
-The main menu for Standard Users is more focused:
-
-1.  **Simplified Header:** Bot version and a welcome message.
-2.  **Media Requests:**
-    *   `➕ Request Movie`: Search for a movie and submit a request for it.
-    *   `➕ Request TV Show`: Search for a TV show and submit a request for it.
-3.  **Tracking Requests:**
-    *   `📋 My Requests`: View the status (Pending, Approved, Rejected) of your submitted media requests.
-
-*(Standard Users will not see direct add buttons, service control menus like Radarr/Plex Controls, Launchers, PC Control, or the Bot Settings option).*
-
-## Requesting Media (Standard User Flow)
-
-1.  From your main menu, tap "➕ Request Movie" or "➕ Request TV Show".
-2.  The bot will prompt you to enter the name of the movie or TV show. Send the name as a regular text message in the chat.
-3.  The bot will search Radarr (for movies) or Sonarr (for TV shows) and display a list of results as buttons.
-    *   If many results are found, pagination buttons (`◀️ Prev`, `Next ▶️`) may appear.
-4.  Tap on the button corresponding to the media item you want.
-5.  The bot will show you details of your selected item (title, year, overview).
-6.  Tap the "✅ Submit Request" button.
-7.  Your request is now submitted to the administrators for approval.
-8.  You can check the status of your request at any time by tapping "📋 My Requests" on your main menu. *You will not receive a direct message when your request is approved or rejected; you need to check "My Requests".*
-
-## Managing Requests (Administrator Flow)
-
-1.  From your main menu, tap "📮 Admin Requests (X)". The `(X)` indicates the number of pending requests.
-2.  You will see a list of pending requests. Tap "👁️ View: [Title]" for a specific request you want to process.
-3.  The bot will display the details of the selected request. You will have options:
-    *   **`✅ Approve`**:
-        *   The bot will then present *you* (the Admin) with the standard Radarr/Sonarr add flow: "Add with Defaults" or "Customize Settings".
-        *   Choose how you want to add it. Upon successful addition to Radarr/Sonarr, the request status will be updated to "approved".
-    *   **`❌ Reject`**:
-        *   The bot will prompt you to enter an optional reason for rejection. Send the reason as a text message.
-        *   You can also send `/skip` if you don't want to provide a specific reason (a default note like "Rejected by admin" will be used).
-        *   The request status will be updated to "rejected", and your reason will be logged.
-4.  To see requests that have already been approved or rejected, navigate from the "Admin Requests" menu to "📜 View History".
-
-## General Tips
-
-*   **Status Message:** Always pay attention to the bot's last message that doesn't have buttons. This is the "universal status message" and will provide prompts (e.g., "Enter movie name:"), feedback on actions, and error messages.
-*   **Navigation:** Use the "🔙 Back" buttons provided within menus. Using `/start` or `/home` will always reset you to your main menu.
-*   **Configuration Changes:** If the Primary Admin changes settings via the `/settings` GUI, most changes are applied immediately. However, changes to the `LOG_LEVEL` typically require a full restart of the bot application on the host machine.
-*   **Log Files:** For troubleshooting, the bot's detailed activity and error logs are stored in the `data/mediabot.log` file, located in the project's root directory on the machine where the bot is running.
+*   The bot attempts to delete your command messages (like `/start`) and text inputs (like search queries) to keep the chat clean.
+*   The "Universal Status Message" at the bottom of your chat provides feedback on actions and current menu context.
+*   Configuration for API keys, URLs, enabled features, and dynamic launchers is done via the `/settings` command (Primary Admin only), which opens a GUI.
+*   Log files are now stored daily in the `data/log/` directory.
+*   Regularly check the `CHANGELOG` for new features and updates.

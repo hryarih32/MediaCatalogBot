@@ -1,3 +1,4 @@
+
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -17,19 +18,24 @@ RADARR_CONTROLS_MENU_TEXT_RAW = "🎬 Radarr Controls"
 
 async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
     if query:
         await query.answer()
 
-    chat_id = update.effective_chat.id
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Unauthorized attempt to access Radarr controls menu from chat_id {chat_id}")
+            f"Unauthorized attempt to access Radarr controls menu from chat_id {chat_id} (Role: {user_role})")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Radarr Controls are for administrators.", parse_mode=None)
+
         return
 
     if not app_config_holder.is_radarr_enabled():
-        await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Radarr API features are disabled.", parse_mode=None)
+        logger.info(
+            f"Radarr controls menu request by {chat_id}, but Radarr feature is disabled.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Radarr API features are disabled in the bot's settings.", parse_mode=None)
+
         await show_or_edit_main_menu(str(chat_id), context)
         return
 
@@ -44,7 +50,6 @@ async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEF
     reply_markup = InlineKeyboardMarkup(keyboard)
     menu_message_id = load_menu_message_id(str(chat_id))
     if not menu_message_id and context.bot_data:
-
         menu_message_id = context.bot_data.get(
             f"main_menu_message_id_{chat_id}")
 
@@ -53,7 +58,6 @@ async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEF
 
     if menu_message_id:
         try:
-
             current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (
@@ -73,21 +77,18 @@ async def display_radarr_controls_menu(update: Update, context: ContextTypes.DEF
             if "message is not modified" in str(e).lower():
                 logger.debug(
                     f"Radarr Controls menu already displayed for message {menu_message_id}. Edit skipped.")
+
+                await send_or_edit_universal_status_message(context.bot, chat_id, "Select a Radarr control option.", parse_mode=None)
             else:
                 logger.error(
-                    f"Error displaying Radarr Controls menu: {e}", exc_info=True)
-            if admin_chat_id_str:
-
+                    f"BadRequest displaying Radarr Controls menu: {e}", exc_info=True)
                 await show_or_edit_main_menu(str(chat_id), context)
         except Exception as e:
             logger.error(
                 f"Error displaying Radarr Controls menu: {e}", exc_info=True)
-            if admin_chat_id_str:
-
-                await show_or_edit_main_menu(str(chat_id), context)
+            await show_or_edit_main_menu(str(chat_id), context)
     else:
         logger.error(
             f"Could not find main_menu_message_id for Radarr Controls menu for chat {chat_id}.")
-        if admin_chat_id_str:
 
-            await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
+        await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)

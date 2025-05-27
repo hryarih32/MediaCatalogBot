@@ -1,27 +1,50 @@
 # Media Catalog Telegram Bot
 
-**Version:** 2.0.0
+**Version: 3.0.0**
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
 
 **License:** GNU General Public License v3.0 (see `LICENSE` file)
 
-The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It integrates with Plex, Radarr, Sonarr, and AB Download Manager, and includes features for PC control and custom script execution. Version 2.0.0 introduces user roles and a media request system.
+The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It integrates with Plex, Radarr, Sonarr, and AB Download Manager, and includes features for PC control, dynamic script/application launching, and robust user management. Version 3.0.0 introduces significant enhancements including dynamic launchers, expanded Plex access for standard users, a user access request system, improved configuration management, and daily log rotation.
 
 ## Core Functionality
 
-*   **Multi-User System:** Supports `ADMIN` and `STANDARD_USER` roles with differentiated features.
-*   **Media Request Workflow:** Standard users can request movies and TV shows; Admins can approve or reject these requests.
+*   **Multi-User System with Roles:**
+    *   **Primary Administrator:** Defined by `CHAT_ID` in `config.py`. Full control, including bot settings and dynamic launcher management.
+    *   **Administrator (`ADMIN`):** Can be assigned by Primary Admin. Access to most control features, direct media addition, and management of user media/access requests.
+    *   **Standard User (`STANDARD_USER`):** Can search/request media, view their own request statuses, and search/browse Plex content including item details.
+    *   **Unknown User (`UNKNOWN`):** New users interacting with the bot; presented with an option to request access.
+*   **User Access Request System:**
+    *   Unknown users can request access to the bot.
+    *   Administrators can review pending access requests via a dedicated menu (with a count indicator) and approve (assigning `STANDARD_USER` or `ADMIN` roles) or deny them.
+*   **Media Request Workflow:**
+    *   Standard users can search for movies (Radarr) and TV shows (Sonarr) and submit them as requests for admin approval.
+    *   Administrators can directly add media or approve/reject user requests.
+    *   Users can track the status of their requests via a "My Requests" menu.
 *   **Service Integrations:**
-    *   **Plex:** View playback, browse library, search, and manage server/library tasks.
-    *   **Radarr (Movies):** Admins add directly; users request. Queue and library management for admins.
-    *   **Sonarr (TV Shows):** Admins add directly; users request. Queue, wanted episodes, and library management for admins.
+    *   **Plex:**
+        *   View "Now Playing" status and stop streams (Admin).
+        *   View "Recently Added" items (Admin).
+        *   Search Plex content (Admin & Standard User: view rich results and navigate item, season, episode details). Administrative actions like "Refresh Metadata" are restricted to Admins.
+        *   Library & Server Tools (Admin only): Scan libraries, refresh metadata, clean bundles, empty trash, optimize database, view server info.
+    *   **Radarr (Movies):** Admins add directly or fulfill approved requests; users request. Queue (with remove/blocklist/blocklist-and-search actions) and library maintenance for admins.
+    *   **Sonarr (TV Shows):** Admins add directly or fulfill approved requests; users request. Queue (with remove/blocklist/blocklist-and-search actions), wanted episodes, and library maintenance for admins.
     *   **AB Download Manager:** Primary admin can submit direct download URLs.
-*   **Local Control (Admin Focused):**
-    *   Launch configured applications (Plex, Radarr, Sonarr, etc.) and custom scripts.
-    *   Control PC media playback, volume, and system power (requires extra dependencies).
-*   **User Interface:**
-    *   Interactive Telegram menus using inline buttons.
-    *   GUI for bot configuration (`/settings` command for Primary Admin).
+*   **Dynamic Launchers & Scripts (Primary Admin Focused):**
+    *   Configure custom buttons in the "Launchers" menu to execute local applications or scripts on the bot's host machine.
+    *   Launchers are managed via the Bot Settings GUI (`/settings`).
+    *   Supports organizing launchers into user-defined subgroups.
+    *   Automatic migration of legacy static launcher settings from `config.py` is supported.
+*   **Local PC Control (Admin Focused):**
+    *   Control PC media playback (play/pause, next, etc.), volume (requires `pycaw`), and system power (shutdown/restart with confirmation).
+*   **User Interface & Configuration:**
+    *   Interactive Telegram menus using inline buttons, tailored to user roles.
+    *   GUI for bot configuration (`/settings` command for Primary Admin), including user management and dynamic launcher setup.
+    *   Persistent, user-specific main menu and status messages (state stored in `data/bot_state.json`).
+    *   Automatic regeneration of `data/config.py` from a template on startup, preserving user values and ensuring configuration consistency.
+*   **Log Management:**
+    *   Logs are stored in a dedicated `data/log/` directory.
+    *   Daily log rotation is implemented, keeping a configurable number of backup log files.
 
 ## Getting Started
 
@@ -33,16 +56,16 @@ The Media Catalog Telegram Bot is a versatile tool designed to help you manage a
         **`SETUP_INSTRUCTIONS.md`**
 3.  **Usage:**
     *   Once set up, learn how to interact with the bot's features and menus by reading:
-        **`BOT_USAGE.md`**
+        **`BOT_USAGE.MD`**
 
 Key Telegram commands after setup:
-*   `/start` or `/home`: Displays the main menu (role-dependent).
+*   `/start` or `/home`: Displays the main menu (role-dependent). For new users, this includes an option to request access.
 *   `/settings`: (Primary Admin Only) Opens the configuration GUI.
 *   `/status`: (Authenticated Users) Refreshes the bot's status message for your chat.
 
 ## Project Structure
 
-The bot's code is organized within the `src/` directory. Runtime data, including your `config.py`, `requests.json` (for media requests), and logs, will be stored in the `data/` directory (created on first run). Template configuration is in `config_templates/`.
+The bot's code is organized within the `src/` directory. Runtime data, including your `config.py`, `requests.json` (for media requests), `bot_state.json` (for user roles, dynamic launchers, message persistence, etc.), and logs (in `data/log/`), will be stored in the `data/` directory (created on first run). Template configuration is in `config_templates/`.
 
 ## ❤️ Support the Project
 

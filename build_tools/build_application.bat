@@ -1,4 +1,5 @@
 @echo off
+SETLOCAL ENABLEDELAYEDEXPANSION
 
 SET "SCRIPT_DIR=%~dp0"
 SET "PROJECT_ROOT=%SCRIPT_DIR%.."
@@ -6,9 +7,16 @@ FOR %%i IN ("%PROJECT_ROOT%") DO SET "PROJECT_ROOT=%%~fi"
 
 echo [+] Project Root determined as: %PROJECT_ROOT%
 
-CALL "%PROJECT_ROOT%\venv\Scripts\activate"
+IF NOT EXIST "%PROJECT_ROOT%\venv\Scripts\activate.bat" (
+    echo [!] Virtual environment not found at "%PROJECT_ROOT%\venv\".
+    echo [!] Please create and activate it first.
+    goto :eof
+)
+
+echo [+] Activating virtual environment...
+CALL "%PROJECT_ROOT%\venv\Scripts\activate.bat"
 IF ERRORLEVEL 1 (
-    echo [!] Failed to activate virtual environment. Make sure venv exists in %PROJECT_ROOT% and is set up.
+    echo [!] Failed to activate virtual environment.
     goto :eof
 )
 
@@ -22,12 +30,14 @@ IF ERRORLEVEL 1 (
 echo [+] Running PyInstaller...
 pushd "%PROJECT_ROOT%"
 
+SET "OUTPUT_NAME=MediaCatalogBot"
+
 pyinstaller --clean --onefile --noconsole ^
-    --name "MediaCatalogBot" ^
+    --name "%OUTPUT_NAME%" ^
     --icon="resources/ico.ico" ^
-    --add-data "config_templates/config.py.default:." ^
+    --add-data "config_templates/config.py.default:config_templates" ^
     --add-data "VERSION:." ^
-    --add-data "resources/ico.ico:." ^
+    --add-data "resources/ico.ico:resources" ^
     --version-file "build_version_details.txt" ^
     --distpath "bin" ^
     MediaCatalog.py
@@ -47,9 +57,9 @@ IF EXIST "%PROJECT_ROOT%\build_version_details.txt" (
     echo [-] Deleting build_version_details.txt
     del "%PROJECT_ROOT%\build_version_details.txt"
 )
-IF EXIST "%PROJECT_ROOT%\Media Catalog Telegram Bot.spec" (
-    echo [-] Deleting Media Catalog Telegram Bot.spec
-    del "%PROJECT_ROOT%\Media Catalog Telegram Bot.spec"
+IF EXIST "%PROJECT_ROOT%\%OUTPUT_NAME%.spec" (
+    echo [-] Deleting %OUTPUT_NAME%.spec
+    del "%PROJECT_ROOT%\%OUTPUT_NAME%.spec"
 )
 IF EXIST "%PROJECT_ROOT%\build" (
     echo [-] Deleting build directory...
@@ -60,3 +70,4 @@ echo [+] Cleanup complete.
 
 :eof
 echo [+] Build process finished.
+ENDLOCAL

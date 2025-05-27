@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
 from src.services.abdm.bot_abdm_core import add_download_to_abdm
-from src.bot.bot_text_utils import escape_md_v2
+from src.bot.bot_text_utils import escape_md_v2, escape_for_inline_code
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,18 @@ async def handle_abdm_download_initiation(update: Update, context: ContextTypes.
     """
     await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
 
+    display_url = download_url[:60] + \
+        '...' if len(download_url) > 60 else download_url
+
+    escaped_url_for_code = escape_for_inline_code(
+        display_url, markdown_version=2)
+
+    status_message_text = f"⏳ Sending download request for: {escaped_url_for_code} to AB Download Manager\\.\\.\\."
+
     await send_or_edit_universal_status_message(
         context.bot,
         chat_id,
-        f"⏳ Sending download request for: `{escape_md_v2(download_url[:60] + '...' if len(download_url) > 60 else download_url)}` to AB Download Manager...",
+        status_message_text,
         parse_mode="MarkdownV2"
     )
 

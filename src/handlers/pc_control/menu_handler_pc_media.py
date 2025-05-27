@@ -1,3 +1,4 @@
+
 import logging
 import pyautogui
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -24,6 +25,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 PC_MEDIA_SOUND_MENU_TEXT_RAW = "🎧 PC Media & Sound Controls"
+
 PC_CONTROL_CALLBACK_PREFIX = "cb_pc_"
 
 MEDIA_ACTION_MAP = {
@@ -32,7 +34,9 @@ MEDIA_ACTION_MAP = {
     f"{PC_CONTROL_CALLBACK_PREFIX}next": "nexttrack",
     f"{PC_CONTROL_CALLBACK_PREFIX}mute": "volumemute",
     f"{PC_CONTROL_CALLBACK_PREFIX}stop": "stop",
+
     f"{PC_CONTROL_CALLBACK_PREFIX}seek_bwd": "left",
+
     f"{PC_CONTROL_CALLBACK_PREFIX}seek_fwd": "right",
 }
 
@@ -61,15 +65,22 @@ def set_system_volume(level_percent: int) -> bool:
 
 async def display_media_sound_controls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
     if query:
         await query.answer()
-    chat_id = update.effective_chat.id
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"PC media controls attempt by non-primary admin {chat_id}.")
+            f"PC media controls attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. PC Media Controls are for administrators.", parse_mode=None)
+        return
+
+    if not app_config_holder.is_pc_control_enabled():
+        logger.info(
+            f"PC media controls menu request by {chat_id}, but PC control feature is disabled.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ PC Control features are currently disabled.", parse_mode=None)
         return
 
     keyboard = [
@@ -139,25 +150,37 @@ async def display_media_sound_controls_menu(update: Update, context: ContextType
         except Exception as e:
             logger.error(
                 f"Error editing message for media/sound controls: {e}", exc_info=True)
-            if admin_chat_id_str:
-                await display_pc_control_categories_menu(update, context)
+
+            await display_pc_control_categories_menu(update, context)
     else:
         logger.error("Cannot find menu_message_id for media/sound controls.")
-        if admin_chat_id_str:
-            await display_pc_control_categories_menu(update, context)
+        await display_pc_control_categories_menu(update, context)
 
 
 async def handle_media_sound_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     callback_data = query.data
-    chat_id_for_status = query.message.chat.id if query.message else None
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
+    chat_id_for_status_obj = query.message.chat if query.message else update.effective_chat
+    if not chat_id_for_status_obj:
+        logger.error(
+            "Could not determine chat_id in handle_media_sound_action")
+        await query.answer("Error: Could not process action.", show_alert=True)
+        return
+    chat_id_for_status = chat_id_for_status_obj.id
 
-    if not admin_chat_id_str or str(chat_id_for_status) != admin_chat_id_str:
+    user_role = app_config_holder.get_user_role(str(chat_id_for_status))
+
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"PC media action attempt by non-primary admin {chat_id_for_status}.")
+            f"PC media action attempt by non-admin {chat_id_for_status} (Role: {user_role}).")
         await query.answer("Access Denied.", show_alert=True)
+        return
+
+    if not app_config_holder.is_pc_control_enabled():
+        logger.info(
+            f"PC media action by {chat_id_for_status}, but PC control feature is disabled.")
+        await query.answer("PC Control features are currently disabled.", show_alert=True)
         return
 
     if callback_data == f"{PC_CONTROL_CALLBACK_PREFIX}no_op_info":
@@ -171,18 +194,15 @@ async def handle_media_sound_action(update: Update, context: ContextTypes.DEFAUL
                 f"{PC_CONTROL_CALLBACK_PREFIX}vol", "")
             level_percent = int(level_str)
             success = set_system_volume(level_percent)
-            if chat_id_for_status:
-                status_msg = f"PC Volume set to {level_percent}%" if success else "PC Volume error (pycaw missing or error)"
-                if not PYCAW_AVAILABLE and success is False:
-                    status_msg = "⚠️ PC Volume control requires 'pycaw' library."
-                await send_or_edit_universal_status_message(context.bot, chat_id_for_status, status_msg, parse_mode=None)
+            status_msg = f"PC Volume set to {level_percent}%" if success else "PC Volume error (pycaw missing or error)"
+            if not PYCAW_AVAILABLE and success is False:
+                status_msg = "⚠️ PC Volume control requires 'pycaw' library."
+            await send_or_edit_universal_status_message(context.bot, chat_id_for_status, status_msg, parse_mode=None)
         except ValueError:
-            if chat_id_for_status:
-                await send_or_edit_universal_status_message(context.bot, chat_id_for_status, "Invalid volume value.", parse_mode=None)
+            await send_or_edit_universal_status_message(context.bot, chat_id_for_status, "Invalid volume value.", parse_mode=None)
         except Exception as e:
             logger.error(f"Error setting volume via callback: {e}")
-            if chat_id_for_status:
-                await send_or_edit_universal_status_message(context.bot, chat_id_for_status, "Error setting volume.", parse_mode=None)
+            await send_or_edit_universal_status_message(context.bot, chat_id_for_status, "Error setting volume.", parse_mode=None)
         return
 
     py_action = MEDIA_ACTION_MAP.get(callback_data)
@@ -191,22 +211,25 @@ async def handle_media_sound_action(update: Update, context: ContextTypes.DEFAUL
         try:
             pyautogui.press(py_action)
             logger.info(
-                f"Executed pyautogui.press('{py_action}') for PC control.")
-            if chat_id_for_status:
-
-                action_display_name = py_action.capitalize()
-                if py_action == "playpause":
-                    action_display_name = "Play/Pause"
-                await send_or_edit_universal_status_message(context.bot, chat_id_for_status, f"{action_display_name} command sent to PC.", parse_mode=None)
+                f"Executed pyautogui.press('{py_action}') for PC control from user {chat_id_for_status}.")
+            action_display_name = py_action.capitalize()
+            if py_action == "playpause":
+                action_display_name = "Play/Pause"
+            elif py_action == "prevtrack":
+                action_display_name = "Previous Track"
+            elif py_action == "nexttrack":
+                action_display_name = "Next Track"
+            elif py_action == "volumemute":
+                action_display_name = "Volume Mute Toggle"
+            await send_or_edit_universal_status_message(context.bot, chat_id_for_status, f"{action_display_name} command sent to PC.", parse_mode=None)
         except NameError:
             logger.error(
-                "pyautogui not found. Cannot execute media key press.")
-            if chat_id_for_status:
-                await send_or_edit_universal_status_message(context.bot, chat_id_for_status, "Error: pyautogui library missing for media keys.", parse_mode=None)
+                "pyautogui not available. Cannot execute media key press.")
+            await send_or_edit_universal_status_message(context.bot, chat_id_for_status, "Error: pyautogui library missing for media keys.", parse_mode=None)
         except Exception as e:
-            logger.error(f"PyAutoGUI error for PC action '{py_action}': {e}")
-            if chat_id_for_status:
-                await send_or_edit_universal_status_message(context.bot, chat_id_for_status, f"Error sending '{py_action}' command.", parse_mode=None)
+            logger.error(
+                f"PyAutoGUI error for PC action '{py_action}': {e}", exc_info=True)
+            await send_or_edit_universal_status_message(context.bot, chat_id_for_status, f"Error sending '{py_action}' command.", parse_mode=None)
         return
 
     logger.warning(f"Unhandled media/sound callback: {callback_data}")

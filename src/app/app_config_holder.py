@@ -1,3 +1,4 @@
+import src.app.user_manager as user_manager_module
 loaded_config = None
 PROJECT_VERSION = "Unknown"
 
@@ -42,13 +43,11 @@ def is_primary_admin(chat_id: int | str) -> bool:
 def get_user_role(chat_id: int | str) -> str:
     """
     Determines the role of a user.
-    In Phase 2, this will be basic: primary admin is ADMIN, others are STANDARD_USER for menu display.
-    This will be expanded in later phases with a user management system.
+    Uses user_manager to check against bot_state.json,
+    after checking for primary admin status from config.py.
     """
-    if is_primary_admin(chat_id):
-        return ROLE_ADMIN
 
-    return ROLE_STANDARD_USER
+    return user_manager_module.get_role_for_chat_id(str(chat_id))
 
 
 def is_plex_enabled():

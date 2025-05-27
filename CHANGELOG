@@ -1,5 +1,63 @@
 # Changelog
 
+## [3.0.0] - 2025-05-27
+
+### Added
+
+-   **Dynamic Launchers & Scripts System (Phase A):**
+    -   Replaced static launcher and script configurations (from `config.py`) with a dynamic system.
+    -   Launchers are now managed via the Bot Settings GUI (`/settings` command for Primary Admin) and stored in `data/bot_state.json`.
+    -   Supports organizing launchers into user-defined subgroups.
+    -   New "🚀 Launchers" main menu button for Primary Admins to access and execute configured dynamic launchers.
+    -   Automatic migration of old static launcher/script settings from `config.py` to the new dynamic system on first run after update (if `static_launchers_migrated` flag in `bot_state.json` is false).
+-   **Plex Search for Standard Users (Phase B):**
+    -   Standard Users can now use the "🔍 Search Plex" feature.
+    -   They receive a rich, button-based list of search results, similar to Admins.
+    -   Standard Users can navigate to view details of movies, shows, seasons, and episodes.
+    -   Administrative action buttons (e.g., "♻️ Refresh Metadata") within Plex detail views are hidden for Standard Users.
+-   **User Access Request System (Phase C):**
+    -   Introduced `ROLE_UNKNOWN` for users not yet recognized by the bot.
+    -   Unknown users are presented with a restricted main menu featuring a "🚪 Request Access" button.
+    -   Submitted access requests are stored in `data/bot_state.json["access_requests_pending"]`.
+    -   Administrators see a "🔑 User Access (X)" button on their main menu, where (X) is the count of pending access requests.
+    -   Administrators can view pending access requests, and approve (assigning `ROLE_STANDARD_USER` or `ROLE_ADMIN`) or deny them.
+    -   User notifications for access request status changes have been removed; users and admins rely on menu indicators/views.
+-   **Configuration File Regeneration (Phase R):**
+    -   The `data/config.py` file is now automatically regenerated on each bot startup based on the structure and defaults in `config_templates/config.py.default`.
+    -   Existing user-set values in `data/config.py` are preserved for recognized configuration keys.
+    -   New configuration keys from the template are added with their default values.
+    -   Obsolete keys are removed from `data/config.py`, ensuring the configuration stays aligned with the current bot version.
+-   **Consolidated Message Persistence:**
+    -   Main menu message IDs and universal status message IDs are now stored per-user within `data/bot_state.json` instead of separate files, managed by `user_manager.py`.
+-   **Log File Management:**
+    -   Log files are now saved into a dedicated `data/log/` subdirectory.
+    -   Implemented daily log rotation, keeping the last 7 days of logs by default (`mediabot.log` and `mediabot.log.YYYY-MM-DD`).
+-   **Queue Item Actions:**
+    -   Added a "🚫 Blocklist Only" option for Radarr and Sonarr download queue items, allowing items to be blocklisted without an immediate re-search.
+
+### Changed
+
+-   **Configuration (`config.py`):**
+    -   Removed all static `SCRIPT_*_ENABLED/NAME/PATH` and `*_LAUNCHER_ENABLED/NAME/PATH` settings. These are now managed by the dynamic launcher system.
+    -   `config_templates/config.py.default` updated to reflect the new minimal set of direct configurations.
+    -   Improved handling of integer-based configuration values (e.g., `ABDM_PORT`) during GUI saves and config regeneration to prevent validation errors.
+-   **Plex Controls Access:** While Standard Users can now browse Plex search results and details, full Plex Controls (Now Playing, Library/Server Tools etc.) remain Admin-only.
+-   **Main Menu:** "Search Plex" button removed from the Admin's main menu (Admins access it via "Plex Controls"). It remains on the Standard User's main menu.
+-   **Internal Refinements:** Various improvements to MarkdownV2 escaping, callback handling, and role checking in Plex, Radarr, and Sonarr menu handlers. Enhanced robustness of configuration loading and validation.
+
+### Fixed
+
+-   Resolved `telegram.error.BadRequest: Can't parse entities` errors in several menu handlers by ensuring correct MarkdownV2 escaping, particularly for parentheses and other special characters in dynamically generated text (e.g., in ABDM download messages, access request approval messages).
+-   Corrected logic in Radarr/Sonarr add flows (`*_movie_selection_callback`, `*_show_selection_callback`) to ensure Standard Users are correctly routed to the "Submit Request" UI after selecting a media item, preventing them from seeing admin-only add/customization options.
+-   Addressed an `ImportError` related to `handle_request_access_button` by adjusting import order/timing to resolve a circular dependency.
+-   Fixed an issue where sub-menu callback query handlers were not being correctly prioritized over the main menu callback handler, leading to "Unrecognized command" errors for some sub-menu navigations. These sub-menu entry points are now handled by more specific handlers in `bot_telegram.py`.
+-   Addressed a Radarr HTTP 500 error that could occur after blocklisting a queue item and attempting an immediate re-search; the bot now primarily reports the blocklist success and advises manual search check if Radarr encounters an internal error.
+
+### Known Issues / Future Work
+
+-   Full user management (adding/removing users, modifying roles via GUI/bot commands beyond initial approval) is still pending (Phase 4).
+-   State management for `requests.json` and `bot_state.json` will be further enhanced with more robust atomic saves and backup/recovery mechanisms (Phase 6).
+
 ## [2.0.0] - 2025-05-25 
 
 ### Added
@@ -16,7 +74,7 @@
         *   Can **"❌ Reject"** pending requests, with an option to provide a rejection reason. The request status updates to "rejected".
         *   Can access a **"📜 Request History"** to view previously approved, rejected, and add-failed requests.
     -   All media request data is now stored in `data/requests.json`.
--   **User-Specific Message Persistence:** The main menu message and universal status message are now managed per user, allowing for individual, persistent interface states. (Currently uses per-user files; will be consolidated into `bot_state.json` in a future update).
+-   **User-Specific Message Persistence:** The main menu message and universal status message are now managed per user, allowing for individual, persistent interface states. (Initially used per-user files; consolidated in 3.0.0).
 
 ### Changed
 

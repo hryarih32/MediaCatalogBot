@@ -1,3 +1,4 @@
+
 from enum import Enum
 
 
@@ -14,35 +15,39 @@ class CallbackData(str, Enum):
     CMD_SONARR_CONTROLS = "cmd_sonarr_controls"
     CMD_PLEX_CONTROLS = "cmd_plex_controls"
     CMD_PC_CONTROL_ROOT = "cmd_pc_control_root"
-    CMD_LAUNCHERS_MENU = "cmd_launchers_menu"
 
     CMD_RADARR_VIEW_QUEUE = "cmd_radarr_view_queue"
     CMD_RADARR_LIBRARY_MAINTENANCE = "cmd_radarr_library_maintenance"
     RADARR_ADD_MEDIA_PAGE_PREFIX = "radarr_add_page_"
     RADARR_SELECT_PREFIX = "radarr_select_"
+    RADARR_REQUEST_PREFIX = "radarr_request_"
     RADARR_CANCEL = "radarr_cancel_add"
     CMD_RADARR_QUEUE_PAGE_PREFIX = "radarr_queue_page_"
     CMD_RADARR_QUEUE_REFRESH = "cmd_radarr_queue_refresh"
     CMD_RADARR_QUEUE_ITEM_ACTIONS_MENU_PREFIX = "radarr_q_actions_menu_"
     CMD_RADARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX = "radarr_q_rem_noblock_"
+    CMD_RADARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX = "radarr_q_block_only_"
     CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX = "radarr_q_block_search_"
+
     CMD_RADARR_QUEUE_BACK_TO_LIST = "radarr_q_back_to_list"
     CMD_RADARR_SCAN_FILES = "cmd_radarr_scan_files"
     CMD_RADARR_UPDATE_METADATA = "cmd_radarr_update_metadata"
     CMD_RADARR_RENAME_FILES = "cmd_radarr_rename_files"
-    RADARR_REQUEST_PREFIX = "radarr_request_"
 
     CMD_SONARR_VIEW_QUEUE = "cmd_sonarr_view_queue"
     CMD_SONARR_VIEW_WANTED = "cmd_sonarr_view_wanted"
     CMD_SONARR_LIBRARY_MAINTENANCE = "cmd_sonarr_library_maintenance"
     SONARR_ADD_MEDIA_PAGE_PREFIX = "sonarr_add_page_"
     SONARR_SELECT_PREFIX = "sonarr_select_"
+    SONARR_REQUEST_PREFIX = "sonarr_request_"
     SONARR_CANCEL = "sonarr_cancel_add"
     CMD_SONARR_QUEUE_PAGE_PREFIX = "sonarr_queue_page_"
     CMD_SONARR_QUEUE_REFRESH = "cmd_sonarr_queue_refresh"
     CMD_SONARR_QUEUE_ITEM_ACTIONS_MENU_PREFIX = "sonarr_q_actions_menu_"
     CMD_SONARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX = "sonarr_q_rem_noblock_"
+    CMD_SONARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX = "sonarr_q_block_only_"
     CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX = "sonarr_q_block_search_"
+
     CMD_SONARR_QUEUE_BACK_TO_LIST = "sonarr_q_back_to_list"
     CMD_SONARR_SEARCH_WANTED_ALL_NOW = "cmd_sonarr_search_wanted_all_now"
     CMD_SONARR_WANTED_REFRESH = "cmd_sonarr_wanted_refresh"
@@ -51,7 +56,6 @@ class CallbackData(str, Enum):
     CMD_SONARR_SCAN_FILES = "cmd_sonarr_scan_files"
     CMD_SONARR_UPDATE_METADATA = "cmd_sonarr_update_metadata"
     CMD_SONARR_RENAME_FILES = "cmd_sonarr_rename_files"
-    SONARR_REQUEST_PREFIX = "sonarr_request_"
 
     CMD_PLEX_VIEW_NOW_PLAYING = "cmd_plex_view_now_playing"
     CMD_PLEX_VIEW_RECENTLY_ADDED = "cmd_plex_view_recently_added"
@@ -77,21 +81,12 @@ class CallbackData(str, Enum):
     CMD_PLEX_OPTIMIZE_DB = "cmd_plex_optimize_db"
     CMD_PLEX_SERVER_INFO = "cmd_plex_server_info"
 
-    CMD_LAUNCH_PLEX = "cmd_launch_plex"
-    CMD_LAUNCH_SONARR = "cmd_launch_sonarr"
-    CMD_LAUNCH_RADARR = "cmd_launch_radarr"
-    CMD_LAUNCH_PROWLARR = "cmd_launch_prowlarr"
-    CMD_LAUNCH_TORRENT = "cmd_launch_torrent"
-    CMD_LAUNCH_ABDM = "cmd_launch_abdm"
-    CMD_SCRIPT_1 = "cmd_script_1"
-    CMD_SCRIPT_2 = "cmd_script_2"
-    CMD_SCRIPT_3 = "cmd_script_3"
-
     CMD_PC_SHOW_MEDIA_SOUND_MENU = "cmd_pc_show_media_sound"
     CMD_PC_SHOW_SYSTEM_POWER_MENU = "cmd_pc_show_system_power"
 
     CMD_MY_REQUESTS_MENU = "cmd_my_requests_menu"
     MY_REQUESTS_PAGE_PREFIX = "my_req_page_"
+    MY_REQUEST_DETAIL_PREFIX = "my_req_detail_"
 
     CMD_ADMIN_REQUESTS_MENU = "cmd_admin_requests_menu"
     ADMIN_REQUESTS_PENDING_PAGE_PREFIX = "admin_req_pending_page_"
@@ -100,3 +95,18 @@ class CallbackData(str, Enum):
     CMD_ADMIN_REJECT_REQUEST_PREFIX = "admin_reject_req_"
     CMD_ADMIN_REQUEST_HISTORY_MENU = "admin_req_hist_menu"
     ADMIN_REQUESTS_HISTORY_PAGE_PREFIX = "admin_req_hist_page_"
+
+    CMD_LAUNCHERS_MENU = "cmd_launchers_menu"
+    CMD_LAUNCHER_SUBGROUP_PREFIX = "cb_launcher_sg_"
+    CMD_LAUNCH_DYNAMIC_PREFIX = "cb_launch_dyn_"
+    CMD_LAUNCHERS_BACK_TO_SUBGROUPS = "cb_launchers_back_to_sg"
+
+    CMD_REQUEST_ACCESS = "cmd_request_access"
+    CMD_ADMIN_VIEW_ACCESS_REQUESTS = "cmd_admin_view_access_reqs"
+
+    ACCESS_REQUEST_ADMIN_PAGE_PREFIX = "admin_access_req_page_"
+    ACCESS_REQUEST_APPROVE_PREFIX = "acc_req_approve_"
+    ACCESS_REQUEST_DENY_PREFIX = "acc_req_deny_"
+    ACCESS_REQUEST_ASSIGN_ROLE_PREFIX = "acc_req_assign_role_"
+
+    CB_NO_OP = "cb_no_op"

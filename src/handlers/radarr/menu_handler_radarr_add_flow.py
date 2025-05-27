@@ -1,3 +1,4 @@
+
 import logging
 import os
 import uuid
@@ -38,7 +39,6 @@ CB_CONFIRM_ADD = f"{RADARR_CB_PREFIX}confirm"
 CB_ADD_DEFAULT = f"{RADARR_CB_PREFIX}default"
 
 CB_SUBMIT_REQUEST_RADARR = f"{RADARR_CB_PREFIX}submit_request"
-
 CB_NO_OP_RADARR = f"{RADARR_CB_PREFIX}no_op"
 
 COLLECTION_MONITOR_OPTIONS = [
@@ -58,13 +58,16 @@ async def radarr_movie_selection_callback(update: Update, context: ContextTypes.
     await query.answer()
 
     flow_data_key = 'radarr_add_flow'
+
     flow_data_from_context_copy = context.user_data.get(
         flow_data_key, {}).copy()
 
     data_to_process = None
+
     if 'initiator_action_data' in flow_data_from_context_copy:
         data_to_process = flow_data_from_context_copy.pop(
             'initiator_action_data')
+
         context.user_data[flow_data_key] = flow_data_from_context_copy
         logger.debug(
             f"Radarr selection: Using initiator_action_data: {data_to_process}")
@@ -76,7 +79,6 @@ async def radarr_movie_selection_callback(update: Update, context: ContextTypes.
     user_id = query.from_user.id
     username = query.from_user.username or query.from_user.first_name or str(
         user_id)
-
     user_role = app_config_holder.get_user_role(str(chat_id))
 
     try:
@@ -101,6 +103,14 @@ async def radarr_movie_selection_callback(update: Update, context: ContextTypes.
             raise ValueError("Invalid TMDB ID format in callback data.")
         tmdb_id = int(tmdb_id_str)
 
+        if not app_config_holder.is_radarr_enabled():
+            logger.info(
+                f"Radarr movie selection by {chat_id}, but Radarr feature is disabled.")
+            await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Radarr API features are disabled.", parse_mode=None)
+
+            await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
+            return
+
         movie_api_details = None
         raw_overview = "Overview not available."
         has_collection_info = False
@@ -111,12 +121,14 @@ async def radarr_movie_selection_callback(update: Update, context: ContextTypes.
                 movie_api_details = lookup_response[0]
             elif isinstance(lookup_response, dict):
                 movie_api_details = lookup_response
+
             if not movie_api_details or not movie_api_details.get("tmdbId"):
                 logger.error(
                     f"Could not fetch valid movie details for TMDB ID {tmdb_id}. Response: {lookup_response}")
                 await send_or_edit_universal_status_message(context.bot, chat_id, f"⚠️ Error: Could not fetch details for selected movie \\(TMDB ID: {tmdb_id}\\)\\.", parse_mode="MarkdownV2")
                 await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
                 return
+
             if movie_api_details.get('overview'):
                 raw_overview = movie_api_details.get('overview')
             collection_obj = movie_api_details.get('collection')
@@ -126,12 +138,12 @@ async def radarr_movie_selection_callback(update: Update, context: ContextTypes.
         except Exception as e_lookup:
             logger.warning(
                 f"Could not pre-fetch full movie details for Radarr: {e_lookup}", exc_info=True)
-            await send_or_edit_universal_status_message(context.bot, chat_id, f"⚠️ Error: Could not fetch details for selected movie \\(TMDB ID: {tmdb_id}\\)\\.", parse_mode="MarkdownV2")
+            await send_or_edit_universal_status_message(context.bot, chat_id, f"⚠️ Error: Could not fetch details for selected movie \\(TMDB ID: {tmdb_id}\\)\\. Check bot logs\\.", parse_mode="MarkdownV2")
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
             return
 
-        current_flow_data_for_update = context.user_data.get(flow_data_key, {})
-        current_flow_data_for_update.update({
+        active_flow_data = context.user_data.get(flow_data_key, {})
+        active_flow_data.update({
             'movie_tmdb_id': movie_api_details['tmdbId'],
             'movie_title': movie_api_details.get('title', 'Unknown Title'),
             'movie_year': movie_api_details.get('year'),
@@ -143,22 +155,31 @@ async def radarr_movie_selection_callback(update: Update, context: ContextTypes.
             'username': username,
             'main_menu_message_id': query.message.message_id
         })
-        context.user_data[flow_data_key] = current_flow_data_for_update
-        active_flow_data = context.user_data[flow_data_key]
+
+        context.user_data[flow_data_key] = active_flow_data
 
         keyboard = []
         is_from_admin_approval = 'approved_request_id' in active_flow_data
 
-        if user_role == app_config_holder.ROLE_ADMIN and (is_admin_add_flow or is_from_admin_approval):
-            keyboard = [
-                [InlineKeyboardButton("Add with Defaults",
-                                      callback_data=CB_ADD_DEFAULT)],
-                [InlineKeyboardButton("Customize Settings",
-                                      callback_data=CB_START_CUSTOMIZE_ROOT)],
-                [InlineKeyboardButton(
-                    "Cancel Add", callback_data=CallbackData.RADARR_CANCEL.value)]
-            ]
-        elif (user_role == app_config_holder.ROLE_STANDARD_USER or user_role == app_config_holder.ROLE_ADMIN) and is_user_request_flow and not is_from_admin_approval:
+        if is_admin_add_flow:
+            if user_role != app_config_holder.ROLE_ADMIN:
+                logger.error(
+                    f"Radarr: Non-admin user ({chat_id}, Role: {user_role}) in RADARR_SELECT_PREFIX flow. This should not happen if search result prefixes are correct for roles.")
+
+                keyboard = [[InlineKeyboardButton(
+                    "Cancel Operation", callback_data=CallbackData.RADARR_CANCEL.value)]]
+            else:
+                keyboard = [
+                    [InlineKeyboardButton(
+                        "Add with Defaults", callback_data=CB_ADD_DEFAULT)],
+                    [InlineKeyboardButton(
+                        "Customize Settings", callback_data=CB_START_CUSTOMIZE_ROOT)],
+                    [InlineKeyboardButton(
+                        "Cancel Add", callback_data=CallbackData.RADARR_CANCEL.value)]
+                ]
+
+        elif is_user_request_flow:
+
             keyboard = [
                 [InlineKeyboardButton("✅ Submit Request",
                                       callback_data=CB_SUBMIT_REQUEST_RADARR)],
@@ -167,63 +188,73 @@ async def radarr_movie_selection_callback(update: Update, context: ContextTypes.
             ]
         else:
             logger.warning(
-                f"radarr_movie_selection_callback: Role/flow mismatch. Role: {user_role}, is_admin_add: {is_admin_add_flow}, is_user_request: {is_user_request_flow}, is_from_admin_approval: {is_from_admin_approval}")
+                f"radarr_movie_selection_callback: Role/flow mismatch. Role: {user_role}, is_admin_add_flow: {is_admin_add_flow}, is_user_request_flow: {is_user_request_flow}, is_from_admin_approval: {is_from_admin_approval}")
             await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Action not available for your role or current flow.", parse_mode=None)
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
             return
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         formatted_title_year = format_media_title_for_md2(
-            active_flow_data['movie_title'],
-            active_flow_data['movie_year']
+            active_flow_data['movie_title'], active_flow_data['movie_year']
         )
         formatted_overview = format_overview_for_md2(
             raw_overview, MAX_OVERVIEW_LENGTH_RADARR)
 
-        msg_text = f"🎬 {formatted_title_year}\n\n"
-        msg_text += f"{formatted_overview}\n\n"
+        msg_text_parts = [f"🎬 {formatted_title_year}\n\n",
+                          f"{formatted_overview}\n\n"]
         if active_flow_data['movie_has_collection']:
-            msg_text += escape_md_v2("ℹ️ _This movie is part of a collection._\n")
+            msg_text_parts.append(escape_md_v2(
+                "ℹ️ _This movie is part of a collection._\n"))
 
-        if user_role == app_config_holder.ROLE_ADMIN and (is_admin_add_flow or is_from_admin_approval):
+        if is_admin_add_flow and user_role == app_config_holder.ROLE_ADMIN:
             prompt_action_text = "add to Radarr"
             if is_from_admin_approval:
-                prompt_action_text = f"add to Radarr (fulfilling request from {escape_md_v2(str(active_flow_data.get('approved_request_original_username', 'user')))})"
-            msg_text += escape_md_v2(f"Choose how to {prompt_action_text}:")
-        else:
-            msg_text += escape_md_v2("Confirm your request for this movie:")
+                original_user_disp = escape_md_v2(
+                    str(active_flow_data.get('approved_request_original_username', 'user')))
+                prompt_action_text = f"add to Radarr (fulfilling request from {original_user_disp})"
+            msg_text_parts.append(escape_md_v2(
+                f"Choose how to {prompt_action_text}:"))
+        elif is_user_request_flow:
+            msg_text_parts.append(escape_md_v2(
+                "Confirm your request for this movie:"))
+
+        final_msg_text = "".join(msg_text_parts)
 
         await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=query.message.message_id,
-            text=msg_text,
+            text=final_msg_text,
             reply_markup=reply_markup,
             parse_mode="MarkdownV2"
         )
+
         context.bot_data[f"menu_message_content_{chat_id}_{query.message.message_id}"] = (
-            msg_text, reply_markup.to_json())
+            final_msg_text, reply_markup.to_json())
 
     except (IndexError, ValueError, KeyError) as e:
         logger.error(
             f"Error in Radarr movie selection processing: {e}", exc_info=True)
-        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Error processing Radarr selection.", parse_mode=None)
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Error processing Radarr selection. Please try again.", parse_mode=None)
+
         await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
 
 
 async def display_radarr_customization_step(context: ContextTypes.DEFAULT_TYPE, flow_data: dict):
     chat_id = flow_data['chat_id']
+
     message_id = flow_data.get('main_menu_message_id')
     step = flow_data['current_step']
 
     title_year_display = format_media_title_for_md2(
         flow_data['movie_title'], flow_data.get('movie_year'))
-    text = f"🎬 Customize Add: {title_year_display}\n\n"
+    text_parts = [f"🎬 Customize Add: {title_year_display}\n\n"]
     keyboard_buttons = []
     step_counter = 0
 
     if step == 'select_root_folder':
         step_counter = 1
-        text += escape_md_v2(f"**Step {step_counter}: Select Root Folder**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Root Folder**"))
         root_folders = get_root_folders()
         if not root_folders:
             err_text = "Error: Could not fetch root folders from Radarr."
@@ -234,9 +265,11 @@ async def display_radarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
         for rf in root_folders:
             keyboard_buttons.append([InlineKeyboardButton(os.path.basename(
                 rf['path'].rstrip('/\\')), callback_data=f"{CB_SELECT_ROOT_PREFIX}{rf['id']}")])
+
     elif step == 'select_quality_profile':
         step_counter = 2
-        text += escape_md_v2(f"**Step {step_counter}: Select Quality Profile**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Quality Profile**"))
         quality_profiles = get_quality_profiles()
         if not quality_profiles:
             err_text = "Error: Could not fetch quality profiles from Radarr."
@@ -246,33 +279,38 @@ async def display_radarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
         for qp in quality_profiles:
             keyboard_buttons.append([InlineKeyboardButton(
                 qp['name'], callback_data=f"{CB_SELECT_QUALITY_PREFIX}{qp['id']}")])
+
     elif step == 'select_minimum_availability':
         step_counter = 3
-        text += escape_md_v2(
-            f"**Step {step_counter}: Select Minimum Availability**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Minimum Availability**"))
         avail_options = get_minimum_availability_options()
         for opt in avail_options:
             keyboard_buttons.append([InlineKeyboardButton(
                 opt['label'], callback_data=f"{CB_SELECT_AVAILABILITY_PREFIX}{opt['value']}")])
+
     elif step == 'select_collection_monitoring' and flow_data.get('movie_has_collection'):
         step_counter = 4
-        text += escape_md_v2(
-            f"**Step {step_counter}: Select Collection Monitoring**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Collection Monitoring**"))
         for opt in COLLECTION_MONITOR_OPTIONS:
             keyboard_buttons.append([InlineKeyboardButton(
                 opt['label'], callback_data=f"{CB_SELECT_COLLECTION_MONITOR_PREFIX}{opt['value']}")])
+
     elif step == 'select_search_on_add':
         step_counter = 4 if not flow_data.get('movie_has_collection') else 5
-        text += escape_md_v2(
-            f"**Step {step_counter}: Search for movie after adding?**")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Search for movie after adding?**"))
         for opt in SEARCH_ON_ADD_OPTIONS:
             keyboard_buttons.append([InlineKeyboardButton(
                 opt['label'], callback_data=f"{CB_SELECT_SEARCH_ON_ADD_PREFIX}{opt['value']}")])
+
     elif step == 'select_tags':
         step_counter = 5 if not flow_data.get('movie_has_collection') else 6
-        text += escape_md_v2(
-            f"**Step {step_counter}: Select Tags (Optional)**\n_Choose multiple then 'Done with Tags'_")
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Select Tags (Optional)**\n_Choose multiple then 'Done with Tags'_"))
         all_tags = get_tags()
+
         current_tags_ids = flow_data.get('tags', [])
         if all_tags:
             for tag_idx, tag in enumerate(all_tags):
@@ -285,13 +323,17 @@ async def display_radarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
                     prefix + tag['label'], callback_data=f"{CB_SELECT_TAG_PREFIX}{tag['id']}")])
         keyboard_buttons.append([InlineKeyboardButton(
             "Done with Tags / Skip Tags", callback_data=CB_SKIP_TAGS)])
+
     elif step == 'confirm_add':
         step_counter = 6 if not flow_data.get('movie_has_collection') else 7
-        text += escape_md_v2(f"**Step {step_counter}: Confirm Add**") + "\n\n"
+        text_parts.append(escape_md_v2(
+            f"**Step {step_counter}: Confirm Add**") + "\n\n")
+
         rf_id = flow_data.get('root_folder_id')
         qp_id = flow_data.get('quality_profile_id')
         avail = flow_data.get('minimum_availability', 'released')
-        coll_mon = flow_data.get('collection_monitoring', 'movieOnly')
+        coll_mon = flow_data.get('collection_monitoring', 'movieOnly' if flow_data.get(
+            'movie_has_collection') else None)
         search_add = flow_data.get('search_on_add', True)
         tags_ids = flow_data.get('tags', [])
 
@@ -312,14 +354,23 @@ async def display_radarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
             if sel_qp_confirm:
                 qp_name_display = sel_qp_confirm['name']
 
-        avail_display = avail
-        avail_option_found = next(
-            (opt['label'] for opt in get_minimum_availability_options() if opt['value'] == avail), None)
-        avail_display = avail_option_found if avail_option_found else avail.capitalize()
+        avail_display = next((opt['label'] for opt in get_minimum_availability_options(
+        ) if opt['value'] == avail), avail.capitalize())
 
-        coll_mon_label = next(
-            (c['label'] for c in COLLECTION_MONITOR_OPTIONS if c['value'] == coll_mon), coll_mon.capitalize())
+        text_parts.append(format_selected_option_for_md2(
+            "Root Folder", rf_path_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Quality Profile", qp_name_display))
+        text_parts.append(format_selected_option_for_md2(
+            "Min\\. Availability", avail_display))
+        if flow_data.get('movie_has_collection') and coll_mon is not None:
+            coll_mon_label = next(
+                (c['label'] for c in COLLECTION_MONITOR_OPTIONS if c['value'] == coll_mon), coll_mon.capitalize())
+            text_parts.append(format_selected_option_for_md2(
+                "Collection Monitor", coll_mon_label))
         search_add_label = "Yes" if search_add else "No"
+        text_parts.append(format_selected_option_for_md2(
+            "Search on Add", search_add_label))
 
         tags_str_display = "None"
         if tags_ids:
@@ -328,33 +379,28 @@ async def display_radarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
                               for t in all_tags_api_confirm if t['id'] in tags_ids]
             if sel_tag_labels:
                 tags_str_display = ", ".join(sel_tag_labels)
+        text_parts.append(format_selected_option_for_md2(
+            "Tags", tags_str_display))
 
-        text += format_selected_option_for_md2("Root Folder", rf_path_display)
-        text += format_selected_option_for_md2(
-            "Quality Profile", qp_name_display)
-        text += format_selected_option_for_md2(
-            "Min\\. Availability", avail_display)
-        if flow_data.get('movie_has_collection'):
-            text += format_selected_option_for_md2(
-                "Collection Monitor", coll_mon_label)
-        text += format_selected_option_for_md2(
-            "Search on Add", search_add_label)
-        text += format_selected_option_for_md2("Tags", tags_str_display)
         keyboard_buttons.append([InlineKeyboardButton(
             "✅ Confirm and Add Movie", callback_data=CB_CONFIRM_ADD)])
 
     keyboard_buttons.append([InlineKeyboardButton(
         "Cancel Add", callback_data=CallbackData.RADARR_CANCEL.value)])
     reply_markup = InlineKeyboardMarkup(keyboard_buttons)
+    final_text_display = "".join(text_parts)
 
     try:
         if message_id:
-            await context.bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, reply_markup=reply_markup, parse_mode="MarkdownV2")
+            await context.bot.edit_message_text(
+                chat_id=chat_id, message_id=message_id, text=final_text_display,
+                reply_markup=reply_markup, parse_mode="MarkdownV2"
+            )
             context.bot_data[f"menu_message_content_{chat_id}_{message_id}"] = (
-                text, reply_markup.to_json())
+                final_text_display, reply_markup.to_json())
         else:
             logger.error(
-                "Radarr customization step called without main_menu_message_id. This indicates a flow error.")
+                "Radarr customization step called without main_menu_message_id.")
             await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Flow error: Cannot display customization options.", parse_mode=None)
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
             return
@@ -363,6 +409,7 @@ async def display_radarr_customization_step(context: ContextTypes.DEFAULT_TYPE, 
             logger.error(
                 f"Error displaying Radarr customization step {step}: {e}", exc_info=True)
             await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ An error occurred displaying Radarr options. Please try again.", parse_mode=None)
+
             context.user_data.pop('radarr_add_flow', None)
             await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
     except Exception as e:
@@ -388,6 +435,16 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
         return
 
     chat_id = flow_data['chat_id']
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
+    if data != CB_SUBMIT_REQUEST_RADARR and user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Non-admin {chat_id} (Role: {user_role}) in Radarr customization callback for non-request action '{data}'. Flow error or unauthorized access.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied to Radarr customization.", parse_mode=None)
+        context.user_data.pop(flow_data_key, None)
+        await show_or_edit_main_menu(str(chat_id), context)
+        return
+
     user_id = flow_data.get('user_id')
     username = flow_data.get('username')
 
@@ -415,13 +472,14 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
                         f"Admin cancelled add for approved request {approved_request_id}. Reverted to pending.")
                     break
         await send_or_edit_universal_status_message(context.bot, chat_id, "❌ Radarr process cancelled.", parse_mode=None)
+
         if is_from_admin_approval:
             from src.handlers.admin_requests.menu_handler_admin_requests import display_admin_pending_requests_menu
+
             dummy_message_obj = type('DummyMessage', (), {'chat_id': chat_id, 'message_id': flow_data.get(
                 'main_menu_message_id'), 'chat': type('DummyChat', (), {'id': chat_id})()})()
             dummy_callback_query_obj = type('DummyQuery', (), {
                                             'data': CallbackData.CMD_ADMIN_REQUESTS_MENU.value, 'message': dummy_message_obj, 'from_user': query.from_user, 'answer': query.answer})()
-
             effective_chat_obj = query.message.chat if query.message else type(
                 'DummyChat', (), {'id': chat_id})()
             dummy_update_obj = type('DummyUpdate', (), {
@@ -432,24 +490,17 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
         return
     elif data == CB_SUBMIT_REQUEST_RADARR:
         await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Submitting your request for '{escape_md_v2(flow_data['movie_title'])}'\\.\\.\\.", parse_mode="MarkdownV2")
-
         request_id = str(uuid.uuid4())
         new_request = {
-            "request_id": request_id,
-            "user_id": user_id,
-            "username": username,
-            "media_type": "movie",
-            "media_tmdb_id": flow_data['movie_tmdb_id'],
-            "media_title": flow_data['movie_title'],
-            "media_year": flow_data.get('movie_year'),
-            "request_timestamp": time.time(),
-            "status": "pending",
-            "status_timestamp": time.time(),
-            "admin_notes": None
+            "request_id": request_id, "user_id": user_id, "username": username,
+            "media_type": "movie", "media_tmdb_id": flow_data['movie_tmdb_id'],
+            "media_title": flow_data['movie_title'], "media_year": flow_data.get('movie_year'),
+            "request_timestamp": time.time(), "status": "pending",
+            "status_timestamp": time.time(), "admin_notes": None
         }
-
         requests_list = load_requests_data()
         requests_list.append(new_request)
+        result_msg_raw = ""
         if save_requests_data(requests_list):
             result_msg_raw = f"✅ Your request for '{flow_data['movie_title']}' has been submitted for admin approval."
             logger.info(
@@ -465,6 +516,14 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
         return
 
     elif data == CB_ADD_DEFAULT or data == CB_CONFIRM_ADD:
+        if user_role != app_config_holder.ROLE_ADMIN:
+            logger.warning(
+                f"Non-admin {chat_id} attempting admin-only add action '{data}'. Denying.")
+            await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. This action is for administrators.", parse_mode=None)
+            context.user_data.pop(flow_data_key, None)
+            await show_or_edit_main_menu(str(chat_id), context)
+            return
+
         await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Processing Radarr add for '{escape_md_v2(flow_data['movie_title'])}'\\.\\.\\.", parse_mode="MarkdownV2")
         add_params = {
             'movie_tmdb_id': flow_data['movie_tmdb_id'],
@@ -474,8 +533,10 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
         }
         if data == CB_ADD_DEFAULT:
             add_params['quality_profile_id'] = get_default_quality_profile_id()
+
             add_params['root_folder_path_or_id'] = get_default_root_folder_id()
             if flow_data.get('movie_has_collection'):
+
                 add_params['add_options_monitor'] = "movieAndCollection"
         else:
             add_params['quality_profile_id'] = flow_data.get(
@@ -486,11 +547,13 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
                 'minimum_availability', "released")
             if flow_data.get('movie_has_collection'):
                 add_params['add_options_monitor'] = flow_data.get(
+
                     'collection_monitoring', "movieAndCollection")
             add_params['search_on_add'] = flow_data.get('search_on_add', True)
             add_params['tags'] = flow_data.get('tags', [])
 
         result_msg_raw = ""
+
         if not add_params['quality_profile_id'] or not add_params['root_folder_path_or_id']:
             error_detail_raw = ""
             if not add_params['quality_profile_id']:
@@ -499,7 +562,7 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
                 error_detail_raw += "Default/selected root folder not found. "
             result_msg_raw = f"⚠️ Error: {error_detail_raw}Please check Radarr settings or bot logs."
             logger.error(
-                f"Missing quality profile or root folder for Radarr add. QP: {add_params['quality_profile_id']}, RF: {add_params['root_folder_path_or_id']}")
+                f"Missing quality profile ID or root folder ID for Radarr add. QP_ID: {add_params['quality_profile_id']}, RF_ID: {add_params['root_folder_path_or_id']}")
 
             if is_from_admin_approval and approved_request_id:
                 all_reqs = load_requests_data()
@@ -509,17 +572,13 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
                         req["admin_notes"] = f"Admin approved, but auto-add failed: {error_detail_raw}"
                         req["status_timestamp"] = time.time()
                         save_requests_data(all_reqs)
-                        if original_requesting_user_id:
-                            try:
-                                await context.bot.send_message(original_requesting_user_id, escape_md_v1(f"⚠️ Your request for '{flow_data['movie_title']}' was approved, but auto-add failed: {error_detail_raw}"))
-                            except Exception as e_notify:
-                                logger.error(
-                                    f"Failed to send 'add_failed' notification to user {original_requesting_user_id}: {e_notify}")
+
                         break
         else:
             result_msg_raw = radarr_add_movie_func(**add_params)
 
             if is_from_admin_approval and approved_request_id:
+
                 success_keywords = ["successfully", "already in Radarr"]
                 is_add_successful = any(
                     keyword.lower() in result_msg_raw.lower() for keyword in success_keywords)
@@ -537,42 +596,22 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
                 if updated_req:
                     save_requests_data(all_reqs)
 
-                if original_requesting_user_id:
-                    user_notif_text_raw = f"✅ Your request for '{flow_data['movie_title']}' was approved and has been added to Radarr!" if is_add_successful else f"⚠️ Your request for '{flow_data['movie_title']}' was approved, but there was an issue adding it to Radarr: {result_msg_raw}"
-                    try:
-                        await context.bot.send_message(original_requesting_user_id, escape_md_v1(user_notif_text_raw))
-                    except Exception as e_notify:
-                        logger.error(
-                            f"Failed to send 'approved & added' notification to user {original_requesting_user_id}: {e_notify}")
-
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(result_msg_raw), parse_mode="MarkdownV2")
         context.user_data.pop(flow_data_key, None)
 
         if is_from_admin_approval:
             from src.handlers.admin_requests.menu_handler_admin_requests import display_admin_pending_requests_menu
-            dummy_message_obj = type('DummyMessage', (), {
-                'chat_id': chat_id,
-                'message_id': flow_data.get('main_menu_message_id'),
-                'chat': type('DummyChat', (), {'id': chat_id})()
-            })()
 
+            dummy_message_obj = type('DummyMessage', (), {'chat_id': chat_id, 'message_id': flow_data.get(
+                'main_menu_message_id'), 'chat': type('DummyChat', (), {'id': chat_id})()})()
             from_user_for_dummy = query.from_user if query and query.from_user else context.bot
             effective_chat_for_dummy = query.message.chat if query and query.message else type(
                 'DummyChat', (), {'id': chat_id})()
+            dummy_callback_query_obj = type('DummyQuery', (), {'data': CallbackData.CMD_ADMIN_REQUESTS_MENU.value, 'message': dummy_message_obj,
 
-            dummy_callback_query_obj = type('DummyQuery', (), {
-                'data': CallbackData.CMD_ADMIN_REQUESTS_MENU.value,
-                'message': dummy_message_obj,
-                'from_user': from_user_for_dummy,
-
-                'answer': query.answer if query else (lambda: None)
-            })()
-
-            dummy_update_obj = type('DummyUpdate', (), {
-                'callback_query': dummy_callback_query_obj,
-                'effective_chat': effective_chat_for_dummy,
-                'effective_user': from_user_for_dummy
-            })()
+                                                               'from_user': from_user_for_dummy, 'answer': (lambda: None) if not query else query.answer})()
+            dummy_update_obj = type('DummyUpdate', (), {'callback_query': dummy_callback_query_obj,
+                                    'effective_chat': effective_chat_for_dummy, 'effective_user': from_user_for_dummy})()
             await display_admin_pending_requests_menu(dummy_update_obj, context)
         else:
             await show_or_edit_main_menu(str(chat_id), context)
@@ -627,5 +666,5 @@ async def radarr_customization_callback(update: Update, context: ContextTypes.DE
         logger.error(
             f"Radarr customization callback reached unhandled state with data: {data}")
         context.user_data.pop(flow_data_key, None)
-        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Unexpected error in Radarr flow.", parse_mode=None)
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Unexpected error in Radarr flow. Please start over.", parse_mode=None)
         await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)

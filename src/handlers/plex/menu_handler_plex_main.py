@@ -1,3 +1,4 @@
+
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -5,7 +6,7 @@ from telegram.error import BadRequest
 
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_callback_data import CallbackData
-from src.bot.bot_initialization import send_or_edit_universal_status_message
+from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
 from src.bot.bot_message_persistence import load_menu_message_id
 
 from src.services.plex.bot_plex_library import get_plex_libraries, trigger_library_scan, trigger_metadata_refresh
@@ -25,13 +26,17 @@ MAX_BUTTON_TEXT_LEN = 60
 
 
 def _truncate_button_text_plex_lib(base_text: str, item_count: int, action_prefix: str) -> str:
-    item_count_str = str(item_count)
+    """Helper to truncate button text for Plex library lists, ensuring it fits."""
+    item_count_str = str(item_count) if item_count is not None else "N/A"
+
     core_info = f"{base_text} ({item_count_str} items)"
     if len(action_prefix + core_info) <= MAX_BUTTON_TEXT_LEN:
         return action_prefix + core_info
+
     suffix_len = len(f" ({item_count_str} items)") + 3
     prefix_len = len(action_prefix)
     available_for_base = MAX_BUTTON_TEXT_LEN - prefix_len - suffix_len
+
     if available_for_base < 5:
         short_base = f"{action_prefix}{base_text}"
         return short_base[:MAX_BUTTON_TEXT_LEN-3] + "..." if len(short_base) > MAX_BUTTON_TEXT_LEN else short_base
@@ -41,30 +46,34 @@ def _truncate_button_text_plex_lib(base_text: str, item_count: int, action_prefi
 
 
 async def plex_now_playing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, from_stop_action=False) -> None:
+    chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
     if not from_stop_action:
         query = update.callback_query
         if query:
             await query.answer()
 
-    chat_id = update.effective_chat.id
-
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Plex now playing attempt by non-primary admin {chat_id}.")
+            f"Plex now playing attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Viewing Plex 'Now Playing' is for administrators.", parse_mode=None)
         return
 
     if not app_config_holder.is_plex_enabled():
+        logger.info(
+            f"Plex now playing request by {chat_id}, but Plex feature is disabled.")
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
 
     now_playing_data = get_now_playing_structured()
 
     if "error" in now_playing_data:
-        await send_or_edit_universal_status_message(context.bot, chat_id, now_playing_data["error"], parse_mode="MarkdownV2")
+        await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(now_playing_data["error"]), parse_mode="MarkdownV2")
         await display_plex_controls_menu(update, context)
         return
     else:
+
         await send_or_edit_universal_status_message(context.bot, chat_id, now_playing_data["summary_text"], parse_mode="MarkdownV2")
 
     keyboard = []
@@ -77,13 +86,21 @@ async def plex_now_playing_callback(update: Update, context: ContextTypes.DEFAUL
                 cb_parts.append(f"player_{player_id}")
             if session_id:
                 cb_parts.append(f"session_{session_id}")
+
             stop_identifier_for_cb = "|".join(cb_parts)
-            if stop_identifier_for_cb:
-                button_text_raw = f"Stop: {item['user_title']} - {item['media_title']}"
-                button_text = button_text_raw[:MAX_BUTTON_TEXT_LEN-3] + "..." if len(
-                    button_text_raw) > MAX_BUTTON_TEXT_LEN else button_text_raw
-                keyboard.append([InlineKeyboardButton(
-                    button_text, callback_data=f"{CallbackData.CMD_PLEX_STOP_STREAM_PREFIX.value}{stop_identifier_for_cb}")])
+            if not stop_identifier_for_cb:
+
+                logger.warning(
+                    f"Could not form a stop identifier for: {item['media_title']}")
+                continue
+
+            button_text_raw = f"Stop: {item['user_title']} - {item['media_title']}"
+            button_text = button_text_raw[:MAX_BUTTON_TEXT_LEN-7] + "..." if len(
+
+                button_text_raw) > MAX_BUTTON_TEXT_LEN-4 else button_text_raw
+
+            keyboard.append([InlineKeyboardButton(
+                button_text, callback_data=f"{CallbackData.CMD_PLEX_STOP_STREAM_PREFIX.value}{stop_identifier_for_cb}")])
 
     keyboard.append([InlineKeyboardButton("🔄 Refresh Now Playing",
                     callback_data=CallbackData.CMD_PLEX_VIEW_NOW_PLAYING.value)])
@@ -99,7 +116,13 @@ async def plex_now_playing_callback(update: Update, context: ContextTypes.DEFAUL
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=menu_message_id, text=escaped_menu_title, reply_markup=reply_markup, parse_mode="MarkdownV2")
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_id,
+                    text=escaped_menu_title,
+                    reply_markup=reply_markup,
+                    parse_mode="MarkdownV2"
+                )
                 context.bot_data[current_content_key] = new_content_tuple
         except BadRequest as e:
             if "message is not modified" not in str(e).lower():
@@ -115,15 +138,16 @@ async def plex_now_playing_callback(update: Update, context: ContextTypes.DEFAUL
 
 async def plex_stop_stream_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer(text="Processing stop command...")
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    await query.answer(text="Processing stop command...")
+
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Plex stop stream attempt by non-primary admin {chat_id}.")
+            f"Plex stop stream attempt by non-admin {chat_id} (Role: {user_role}).")
 
-        await query.answer("Access Denied.", show_alert=True)
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Stopping streams is for administrators.", parse_mode=None)
         return
 
     full_identifier_payload = query.data.replace(
@@ -142,57 +166,70 @@ async def plex_stop_stream_callback(update: Update, context: ContextTypes.DEFAUL
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
+
     if not session_id_to_stop and not player_id_to_stop:
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2("⚠️ Could not identify stream to stop \\(no valid ID\\)\\."), parse_mode="MarkdownV2")
+
         await plex_now_playing_callback(update, context, from_stop_action=True)
         return
 
-    target_info_log_raw = []
+    target_info_log_parts = []
     if player_id_to_stop:
-        target_info_log_raw.append(f"PlayerID='{player_id_to_stop}'")
+        target_info_log_parts.append(f"PlayerID='{player_id_to_stop}'")
     if session_id_to_stop:
-        target_info_log_raw.append(f"SessionID='{session_id_to_stop}'")
-    log_msg_ids_raw = ", ".join(target_info_log_raw)
+        target_info_log_parts.append(f"SessionID='{session_id_to_stop}'")
+    log_msg_ids_raw = ", ".join(target_info_log_parts)
+
     await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Attempting to stop stream \\({escape_md_v2(log_msg_ids_raw)}\\)\\.\\.\\.", parse_mode="MarkdownV2")
 
-    stop_result_v2_escaped = stop_plex_stream(
+    stop_result_mdv2_escaped = stop_plex_stream(
         session_id_to_stop=session_id_to_stop, player_identifier_to_stop=player_id_to_stop)
     logger.info(
-        f"Plex stop_plex_stream result for {log_msg_ids_raw}: {stop_result_v2_escaped}")
+        f"Plex stop_plex_stream result for {log_msg_ids_raw}: {stop_result_mdv2_escaped}")
 
     await plex_now_playing_callback(update, context, from_stop_action=True)
 
-    alert_text_raw = stop_result_v2_escaped.replace('\\*', '*').replace(
+    alert_text_raw = stop_result_mdv2_escaped.replace('\\*', '*').replace(
         '\\(', '(').replace('\\)', ')').replace('\\.', '.').replace('\\!', '!').replace('\\-', '-')
     alert_text_raw = alert_text_raw.replace('⚠️', '').replace('✅', '').strip()
     if not alert_text_raw:
         alert_text_raw = "Plex: Unknown status for stop command."
 
-    show_alert_flag = "✅" not in stop_result_v2_escaped
+    show_alert_flag = "✅" not in stop_result_mdv2_escaped
     alert_text_display = alert_text_raw[:190] + \
         "..." if len(alert_text_raw) > 190 else alert_text_raw
-    await context.bot.answer_callback_query(query.id, text=alert_text_display, show_alert=show_alert_flag)
+
+    try:
+        await context.bot.answer_callback_query(query.id, text=alert_text_display, show_alert=show_alert_flag)
+    except BadRequest as e_ans:
+        if "query is too old" not in str(e_ans).lower() and "callback query is not found" not in str(e_ans).lower():
+            logger.debug(
+                f"Secondary answerCallbackQuery for stop stream result failed: {e_ans}")
 
 
 async def plex_scan_libraries_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    await query.answer()
+
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Plex scan select attempt by non-primary admin {chat_id}.")
+            f"Plex scan select attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Library scanning is for administrators.", parse_mode=None)
         return
 
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
+
         await display_plex_library_server_tools_menu(update, context, called_internally=True)
         return
 
     libraries = get_plex_libraries()
     if not libraries:
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ No Plex libraries found or error fetching them.", parse_mode=None)
+
         await display_plex_library_server_tools_menu(update, context, called_internally=True)
         return
 
@@ -200,6 +237,7 @@ async def plex_scan_libraries_select_callback(update: Update, context: ContextTy
         "➡️ Scan All Libraries ⬅️", callback_data=f"{CallbackData.CMD_PLEX_SCAN_LIBRARY_PREFIX.value}all")]]
     for lib in libraries:
         base_button_text = f"{lib['title']} ({lib['type']})"
+
         button_text = _truncate_button_text_plex_lib(
             base_button_text, lib.get('item_count', 0), "Scan: ")
         keyboard.append([InlineKeyboardButton(
@@ -217,7 +255,13 @@ async def plex_scan_libraries_select_callback(update: Update, context: ContextTy
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=menu_message_id, text=escaped_menu_title, reply_markup=reply_markup, parse_mode="MarkdownV2")
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_id,
+                    text=escaped_menu_title,
+                    reply_markup=reply_markup,
+                    parse_mode="MarkdownV2"
+                )
                 context.bot_data[current_content_key] = new_content_tuple
             await send_or_edit_universal_status_message(context.bot, chat_id, "Select a library to scan, or scan all.", parse_mode=None)
         except BadRequest as e:
@@ -239,13 +283,15 @@ async def plex_scan_libraries_select_callback(update: Update, context: ContextTy
 
 async def plex_scan_library_execute_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    await query.answer()
+
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Plex scan execute attempt by non-primary admin {chat_id}.")
+            f"Plex scan execute attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Library scanning is for administrators.", parse_mode=None)
         return
 
     data_parts = query.data.split(
@@ -254,12 +300,15 @@ async def plex_scan_library_execute_callback(update: Update, context: ContextTyp
         logger.error(f"Invalid callback data for scan: {query.data}")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Error processing scan request.", parse_mode=None)
         return
+
     library_key_or_all = data_parts[1]
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
+
     scan_target_msg_raw = "all libraries" if library_key_or_all == "all" else f"library key {library_key_or_all}"
     await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(f"⏳ Initiating Plex scan for {scan_target_msg_raw}\\.\\.\\."), parse_mode="MarkdownV2")
+
     scan_result_text_raw = trigger_library_scan(
         library_key_or_all if library_key_or_all != "all" else None)
     await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(scan_result_text_raw), parse_mode="MarkdownV2")
@@ -269,29 +318,34 @@ async def plex_scan_library_execute_callback(update: Update, context: ContextTyp
 
 async def plex_refresh_library_metadata_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    await query.answer()
+
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Plex refresh select attempt by non-primary admin {chat_id}.")
+            f"Plex refresh select attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Metadata refresh is for administrators.", parse_mode=None)
         return
 
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
+
         await display_plex_library_server_tools_menu(update, context, called_internally=True)
         return
 
     libraries = get_plex_libraries()
     if not libraries:
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ No Plex libraries found or error fetching them.", parse_mode=None)
+
         await display_plex_library_server_tools_menu(update, context, called_internally=True)
         return
 
     keyboard = [[InlineKeyboardButton(
         "➡️ Refresh All Libraries ⬅️", callback_data=f"{CallbackData.CMD_PLEX_REFRESH_LIBRARY_METADATA_PREFIX.value}all")]]
     for lib in libraries:
+
         if lib['type'] in ['movie', 'show', 'artist']:
             base_button_text = f"{lib['title']} ({lib['type']})"
             button_text = _truncate_button_text_plex_lib(
@@ -311,7 +365,13 @@ async def plex_refresh_library_metadata_select_callback(update: Update, context:
             old_content_tuple = context.bot_data.get(current_content_key)
             new_content_tuple = (escaped_menu_title, reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=menu_message_id, text=escaped_menu_title, reply_markup=reply_markup, parse_mode="MarkdownV2")
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_id,
+                    text=escaped_menu_title,
+                    reply_markup=reply_markup,
+                    parse_mode="MarkdownV2"
+                )
                 context.bot_data[current_content_key] = new_content_tuple
             await send_or_edit_universal_status_message(context.bot, chat_id, "Select a library to refresh metadata, or refresh all.", parse_mode=None)
         except BadRequest as e:
@@ -333,13 +393,15 @@ async def plex_refresh_library_metadata_select_callback(update: Update, context:
 
 async def plex_refresh_library_metadata_execute_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
     chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    await query.answer()
+
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Plex refresh execute attempt by non-primary admin {chat_id}.")
+            f"Plex refresh execute attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Metadata refresh is for administrators.", parse_mode=None)
         return
 
     data_parts = query.data.split(
@@ -348,12 +410,15 @@ async def plex_refresh_library_metadata_execute_callback(update: Update, context
         logger.error(f"Invalid callback data for refresh: {query.data}")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Error processing refresh request.", parse_mode=None)
         return
+
     library_key_or_all = data_parts[1]
     if not app_config_holder.is_plex_enabled():
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Plex features are disabled.", parse_mode=None)
         return
+
     refresh_target_msg_raw = "all eligible libraries" if library_key_or_all == "all" else f"library key {library_key_or_all}"
     await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(f"⏳ Initiating Plex metadata refresh for {refresh_target_msg_raw}\\.\\.\\."), parse_mode="MarkdownV2")
+
     refresh_result_text_raw = trigger_metadata_refresh(
         library_key_or_all if library_key_or_all != "all" else None)
     await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(refresh_result_text_raw), parse_mode="MarkdownV2")

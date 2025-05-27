@@ -3,10 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
 *.pyd
-
+*.egg-info/
 .Python
+*.egg
+MANIFEST
 
 build/
 develop-eggs/
@@ -21,16 +22,12 @@ sdist/
 var/
 wheels/
 share/python-wheels/
-*.egg-info/
 .installed.cfg
-*.egg
-MANIFEST
+build_version_details.txt
 
 *.spec
 
 bin/
-
-build_version_details.txt
 
 .env
 .venv/
@@ -44,17 +41,11 @@ data/
 
 .vscode/
 .idea/
-
+*.swp
+*~
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-*.tmp
-*.bak
-*.swp
-*~
-
-*.sqsh
 
 .coverage
 .coverage.*
@@ -69,5 +60,5 @@ cover/
 
 .ipynb_checkpoints
 
-.pylance/
-.pyright_output/
+*.tmp
+*.bak

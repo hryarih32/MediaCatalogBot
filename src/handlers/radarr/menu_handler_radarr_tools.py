@@ -1,3 +1,4 @@
+
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -5,7 +6,7 @@ from telegram.error import BadRequest
 
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_message_persistence import load_menu_message_id
-from src.bot.bot_initialization import send_or_edit_universal_status_message
+from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
 from src.bot.bot_callback_data import CallbackData
 
 from src.handlers.radarr.menu_handler_radarr_controls import display_radarr_controls_menu
@@ -18,18 +19,21 @@ RADARR_LIBRARY_MAINTENANCE_MENU_TEXT_RAW = "🎬 Radarr - Library Maintenance"
 
 async def display_radarr_library_maintenance_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
     if query:
         await query.answer()
-    chat_id = update.effective_chat.id
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Radarr library maint attempt by non-primary admin {chat_id}.")
+            f"Radarr library maint attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. Radarr Library Maintenance is for administrators.", parse_mode=None)
         return
 
     if not app_config_holder.is_radarr_enabled():
+        logger.info(
+            f"Radarr library maintenance menu request by {chat_id}, but Radarr feature is disabled.")
         await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Radarr API features are disabled.", parse_mode=None)
 
         await display_radarr_controls_menu(update, context)
@@ -42,7 +46,6 @@ async def display_radarr_library_maintenance_menu(update: Update, context: Conte
             "♻️ Update All Metadata", callback_data=CallbackData.CMD_RADARR_UPDATE_METADATA.value)],
         [InlineKeyboardButton("✍️ Rename All Movie Files",
                               callback_data=CallbackData.CMD_RADARR_RENAME_FILES.value)],
-
         [InlineKeyboardButton("🔙 Back to Radarr Controls",
                               callback_data=CallbackData.CMD_RADARR_CONTROLS.value)]
     ]
@@ -73,10 +76,12 @@ async def display_radarr_library_maintenance_menu(update: Update, context: Conte
             if "message is not modified" in str(e).lower():
                 logger.debug(
                     f"Radarr Library Maintenance menu already displayed for message {menu_message_id}. Edit skipped.")
+
+                await send_or_edit_universal_status_message(context.bot, chat_id, "Select a Radarr library maintenance action.", parse_mode=None)
             else:
                 logger.error(
-                    f"Error displaying Radarr Library Maintenance menu: {e}", exc_info=True)
-            await display_radarr_controls_menu(update, context)
+                    f"BadRequest displaying Radarr Library Maintenance menu: {e}", exc_info=True)
+                await display_radarr_controls_menu(update, context)
         except Exception as e:
             logger.error(
                 f"Error displaying Radarr Library Maintenance menu: {e}", exc_info=True)
@@ -84,4 +89,5 @@ async def display_radarr_library_maintenance_menu(update: Update, context: Conte
     else:
         logger.error(
             "Cannot find menu_message_id for Radarr Library Maintenance menu.")
-        await display_radarr_controls_menu(update, context)
+
+        await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)

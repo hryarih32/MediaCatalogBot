@@ -1,3 +1,4 @@
+
 import logging
 import math
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -6,7 +7,7 @@ from telegram.error import BadRequest
 
 import src.app.app_config_holder as app_config_holder
 from src.bot.bot_message_persistence import load_menu_message_id
-from src.bot.bot_initialization import send_or_edit_universal_status_message
+from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
 from src.bot.bot_callback_data import CallbackData
 from src.services.sonarr.bot_sonarr_manage import get_wanted_missing_episodes, get_sonarr_queue
 from src.services.sonarr.bot_sonarr_core import get_all_series_ids_and_titles_cached
@@ -19,19 +20,30 @@ logger = logging.getLogger(__name__)
 SONARR_WANTED_EPISODES_MENU_TEXT_TEMPLATE_RAW = "🎯 Sonarr - Wanted Episodes (Page {current_page}/{total_pages})"
 SONARR_QUEUE_MENU_TEXT_TEMPLATE_RAW = "📥 Sonarr - Download Queue (Page {current_page}/{total_pages})"
 
-DEFAULT_PAGE_SIZE = 5
+DEFAULT_PAGE_SIZE_CONFIG_KEY = "ADD_MEDIA_ITEMS_PER_PAGE"
+DEFAULT_PAGE_SIZE_FALLBACK = 5
 
 
 async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 1) -> None:
     query = update.callback_query
+    chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
     if query:
         await query.answer()
-    chat_id = update.effective_chat.id
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
+    if user_role != app_config_holder.ROLE_ADMIN:
         logger.warning(
-            f"Sonarr wanted episodes attempt by non-primary admin {chat_id}.")
+            f"Sonarr wanted episodes attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. This section is for administrators.", parse_mode=None)
+        return
+
+    if not app_config_holder.is_sonarr_enabled():
+        logger.info(
+            f"Sonarr wanted episodes menu request by {chat_id}, but Sonarr feature is disabled.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Sonarr API features are disabled.", parse_mode=None)
+
+        await display_sonarr_controls_menu(update, context)
         return
 
     is_refresh_call = query and query.data == CallbackData.CMD_SONARR_WANTED_REFRESH.value
@@ -40,8 +52,10 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
             "Refreshing Sonarr series title cache for wanted episodes list.")
         get_all_series_ids_and_titles_cached(force_refresh=True)
 
+    items_per_page = app_config_holder.get_add_media_items_per_page(
+    ) or DEFAULT_PAGE_SIZE_FALLBACK
     wanted_data = get_wanted_missing_episodes(
-        page=page, page_size=DEFAULT_PAGE_SIZE)
+        page=page, page_size=items_per_page)
     keyboard = []
     menu_title_text_raw = "🎯 Sonarr - Wanted Episodes"
 
@@ -49,14 +63,13 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
         episodes = wanted_data['records']
         total_records = wanted_data.get('totalRecords', 0)
         current_page = wanted_data.get('page', page)
-        page_size_from_api = wanted_data.get('pageSize', DEFAULT_PAGE_SIZE)
+        page_size_from_api = wanted_data.get('pageSize', items_per_page)
         total_pages = math.ceil(
             total_records / page_size_from_api) if total_records > 0 else 1
-        if total_pages == 0 and total_records > 0:
-            total_pages = 1
 
         menu_title_text_raw = SONARR_WANTED_EPISODES_MENU_TEXT_TEMPLATE_RAW.format(
             current_page=current_page, total_pages=total_pages)
+
         context.user_data['sonarr_wanted_current_page'] = current_page
 
         status_message_text_raw = f"Displaying page {current_page} of {total_pages} for wanted episodes."
@@ -73,8 +86,8 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
                 logger.warning(
                     f"Skipping non-dict item in Sonarr wanted episodes: {ep_item}")
                 continue
-
-            series_title_raw = ep_item.get('seriesTitle', 'Unknown Series')
+            series_title_raw = ep_item.get(
+                'seriesTitle', 'Unknown Series')
             ep_title_raw = ep_item.get(
                 'title', f"Ep {ep_item.get('episodeNumber', '?')}")
             button_text = f"{series_title_raw} - S{ep_item.get('seasonNumber'):02d}E{ep_item.get('episodeNumber'):02d} - {ep_title_raw}"
@@ -103,14 +116,14 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
                     callback_data=CallbackData.CMD_SONARR_SEARCH_WANTED_ALL_NOW.value)])
     keyboard.append([InlineKeyboardButton(
         "🔄 Refresh List", callback_data=CallbackData.CMD_SONARR_WANTED_REFRESH.value)])
-
     keyboard.append([InlineKeyboardButton("🔙 Back to Sonarr Controls",
                     callback_data=CallbackData.CMD_SONARR_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     menu_message_id = load_menu_message_id(str(chat_id))
     if not menu_message_id and context.bot_data:
-        menu_message_id = context.bot_data.get("main_menu_message_id")
+        menu_message_id = context.bot_data.get(
+            f"main_menu_message_id_{chat_id}")
 
     escaped_menu_title_display = escape_md_v2(
         menu_title_text_raw.replace("(", "\\(").replace(")", "\\)"))
@@ -122,7 +135,10 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
             new_content_tuple = (escaped_menu_title_display,
                                  reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=menu_message_id, text=escaped_menu_title_display, reply_markup=reply_markup, parse_mode="MarkdownV2")
+                await context.bot.edit_message_text(
+                    chat_id=chat_id, message_id=menu_message_id,
+                    text=escaped_menu_title_display, reply_markup=reply_markup, parse_mode="MarkdownV2"
+                )
                 context.bot_data[current_content_key] = new_content_tuple
         except BadRequest as e:
             if "message is not modified" not in str(e).lower():
@@ -135,21 +151,35 @@ async def display_sonarr_wanted_episodes_menu(update: Update, context: ContextTy
         logger.error(
             "Cannot find menu_message_id for Sonarr Wanted Episodes menu.")
 
+        await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
+
 
 async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 1) -> None:
     query = update.callback_query
+    chat_id = update.effective_chat.id
+    user_role = app_config_holder.get_user_role(str(chat_id))
+
     if query:
         await query.answer()
-    chat_id = update.effective_chat.id
 
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str or str(chat_id) != admin_chat_id_str:
-        logger.warning(f"Sonarr queue attempt by non-primary admin {chat_id}.")
+    if user_role != app_config_holder.ROLE_ADMIN:
+        logger.warning(
+            f"Sonarr queue attempt by non-admin {chat_id} (Role: {user_role}).")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. This section is for administrators.", parse_mode=None)
+        return
+
+    if not app_config_holder.is_sonarr_enabled():
+        logger.info(
+            f"Sonarr queue menu request by {chat_id}, but Sonarr feature is disabled.")
+        await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ Sonarr API features are disabled.", parse_mode=None)
+        await display_sonarr_controls_menu(update, context)
         return
 
     is_refresh_call = query and query.data == CallbackData.CMD_SONARR_QUEUE_REFRESH.value
 
-    queue_data = get_sonarr_queue(page=page, page_size=DEFAULT_PAGE_SIZE)
+    items_per_page = app_config_holder.get_add_media_items_per_page(
+    ) or DEFAULT_PAGE_SIZE_FALLBACK
+    queue_data = get_sonarr_queue(page=page, page_size=items_per_page)
     keyboard = []
     menu_title_text_raw = "📥 Sonarr - Download Queue"
 
@@ -157,14 +187,13 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
         items = queue_data['records']
         total_records = queue_data.get('totalRecords', 0)
         current_page = queue_data.get('page', page)
-        page_size_from_api = queue_data.get('pageSize', DEFAULT_PAGE_SIZE)
+        page_size_from_api = queue_data.get('pageSize', items_per_page)
         total_pages = math.ceil(
             total_records / page_size_from_api) if total_records > 0 else 1
-        if total_pages == 0 and total_records > 0:
-            total_pages = 1
 
         menu_title_text_raw = SONARR_QUEUE_MENU_TEXT_TEMPLATE_RAW.format(
             current_page=current_page, total_pages=total_pages)
+
         context.user_data['sonarr_queue_current_page'] = current_page
 
         status_msg_raw = f"Displaying page {current_page} of {total_pages} for Sonarr queue."
@@ -186,17 +215,16 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
             ep_info = item.get('episode', {})
             status_raw = item.get('status', 'N/A')
             season_num_raw = ep_info.get(
-
                 'seasonNumber', item.get('seasonNumber', ''))
             ep_num_raw = ep_info.get(
                 'episodeNumber', item.get('episodeNumber', ''))
-            progress_value = item.get(
 
+            progress_value = item.get(
                 'progress', item.get('totalProgress', 0.0))
             progress_percent_raw = f"{progress_value:.1f}%"
             item_id_for_actions = str(item.get('id'))
-            episode_id_for_search = str(ep_info.get(
-                'id', '0'))
+            episode_id_for_search = str(
+                ep_info.get('id', '0'))
 
             button_display_title = f"{series_title_raw} - S{season_num_raw:02d}E{ep_num_raw:02d}" if season_num_raw != '' and ep_num_raw != '' else series_title_raw
             if len(button_display_title) > 30:
@@ -204,6 +232,7 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
 
             display_text = f"{button_display_title} ({status_raw} - {progress_percent_raw})"
             if len(display_text) > 50:
+
                 display_text = display_text[:47] + "..."
             callback_payload = f"{item_id_for_actions}_{episode_id_for_search}"
             keyboard.append([InlineKeyboardButton(
@@ -227,7 +256,6 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
 
     keyboard.append([InlineKeyboardButton(
         "🔄 Refresh Queue", callback_data=CallbackData.CMD_SONARR_QUEUE_REFRESH.value)])
-
     keyboard.append([InlineKeyboardButton("🔙 Back to Sonarr Controls",
                     callback_data=CallbackData.CMD_SONARR_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -247,7 +275,10 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
             new_content_tuple = (escaped_menu_title_display,
                                  reply_markup.to_json())
             if old_content_tuple != new_content_tuple:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=menu_message_id, text=escaped_menu_title_display, reply_markup=reply_markup, parse_mode="MarkdownV2")
+                await context.bot.edit_message_text(
+                    chat_id=chat_id, message_id=menu_message_id,
+                    text=escaped_menu_title_display, reply_markup=reply_markup, parse_mode="MarkdownV2"
+                )
                 context.bot_data[current_content_key] = new_content_tuple
         except BadRequest as e:
             if "message is not modified" not in str(e).lower():
@@ -258,3 +289,5 @@ async def display_sonarr_queue_menu(update: Update, context: ContextTypes.DEFAUL
                 f"Error displaying Sonarr Queue menu (edit): {e}", exc_info=True)
     else:
         logger.error("Cannot find menu_message_id for Sonarr Queue menu.")
+
+        await show_or_edit_main_menu(str(chat_id), context, force_send_new=True)
