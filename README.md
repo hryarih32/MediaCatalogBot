@@ -1,25 +1,25 @@
 # Media Catalog Telegram Bot
 
-**Version: 3.0.0**
+**Version: 3.1.0**
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
 
 **License:** GNU General Public License v3.0 (see `LICENSE` file)
 
-The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It integrates with Plex, Radarr, Sonarr, and AB Download Manager, and includes features for PC control, dynamic script/application launching, and robust user management. Version 3.0.0 introduces significant enhancements including dynamic launchers, expanded Plex access for standard users, a user access request system, improved configuration management, and daily log rotation.
+The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It integrates with Plex, Radarr, Sonarr, and AB Download Manager, and includes features for PC control, dynamic script/application launching, and robust user management. Version 3.1.0 brings further refinements to user access controls, request workflows, and overall stability.
 
 ## Core Functionality
 
 *   **Multi-User System with Roles:**
-    *   **Primary Administrator:** Defined by `CHAT_ID` in `config.py`. Full control, including bot settings and dynamic launcher management.
-    *   **Administrator (`ADMIN`):** Can be assigned by Primary Admin. Access to most control features, direct media addition, and management of user media/access requests.
+    *   **Primary Administrator:** Defined by `CHAT_ID` in `config.py`. Full control, including bot settings, dynamic launcher management, and the ability to assign other users as `ADMIN`.
+    *   **Administrator (`ADMIN`):** Can be assigned by Primary Admin. Access to most control features, direct media addition, and management of user media/access requests (can approve users as `STANDARD_USER`).
     *   **Standard User (`STANDARD_USER`):** Can search/request media, view their own request statuses, and search/browse Plex content including item details.
     *   **Unknown User (`UNKNOWN`):** New users interacting with the bot; presented with an option to request access.
 *   **User Access Request System:**
     *   Unknown users can request access to the bot.
-    *   Administrators can review pending access requests via a dedicated menu (with a count indicator) and approve (assigning `STANDARD_USER` or `ADMIN` roles) or deny them.
+    *   Administrators can review pending access requests via a dedicated menu (with a count indicator) and approve or deny them. Primary Admins can assign `ADMIN` or `STANDARD_USER` roles; other Admins can only assign `STANDARD_USER`.
 *   **Media Request Workflow:**
     *   Standard users can search for movies (Radarr) and TV shows (Sonarr) and submit them as requests for admin approval.
-    *   Administrators can directly add media or approve/reject user requests.
+    *   Administrators can directly add media or approve/reject user requests. Media request status is updated accurately upon completion or cancellation of the add flow.
     *   Users can track the status of their requests via a "My Requests" menu.
 *   **Service Integrations:**
     *   **Plex:**
@@ -27,8 +27,8 @@ The Media Catalog Telegram Bot is a versatile tool designed to help you manage a
         *   View "Recently Added" items (Admin).
         *   Search Plex content (Admin & Standard User: view rich results and navigate item, season, episode details). Administrative actions like "Refresh Metadata" are restricted to Admins.
         *   Library & Server Tools (Admin only): Scan libraries, refresh metadata, clean bundles, empty trash, optimize database, view server info.
-    *   **Radarr (Movies):** Admins add directly or fulfill approved requests; users request. Queue (with remove/blocklist/blocklist-and-search actions) and library maintenance for admins.
-    *   **Sonarr (TV Shows):** Admins add directly or fulfill approved requests; users request. Queue (with remove/blocklist/blocklist-and-search actions), wanted episodes, and library maintenance for admins.
+    *   **Radarr (Movies):** Admins add directly or fulfill approved requests; users request. Queue (with remove/blocklist only/blocklist-and-search actions) and library maintenance for admins.
+    *   **Sonarr (TV Shows):** Admins add directly or fulfill approved requests; users request. Queue (with remove/blocklist only/blocklist-and-search actions), wanted episodes, and library maintenance for admins.
     *   **AB Download Manager:** Primary admin can submit direct download URLs.
 *   **Dynamic Launchers & Scripts (Primary Admin Focused):**
     *   Configure custom buttons in the "Launchers" menu to execute local applications or scripts on the bot's host machine.
@@ -38,7 +38,7 @@ The Media Catalog Telegram Bot is a versatile tool designed to help you manage a
 *   **Local PC Control (Admin Focused):**
     *   Control PC media playback (play/pause, next, etc.), volume (requires `pycaw`), and system power (shutdown/restart with confirmation).
 *   **User Interface & Configuration:**
-    *   Interactive Telegram menus using inline buttons, tailored to user roles.
+    *   Interactive Telegram menus using inline buttons, tailored to user roles. Menus for all authenticated users are refreshed upon bot startup.
     *   GUI for bot configuration (`/settings` command for Primary Admin), including user management and dynamic launcher setup.
     *   Persistent, user-specific main menu and status messages (state stored in `data/bot_state.json`).
     *   Automatic regeneration of `data/config.py` from a template on startup, preserving user values and ensuring configuration consistency.

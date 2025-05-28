@@ -10,13 +10,13 @@ import datetime
 import src.app.app_config_holder as app_config_holder
 import src.app.user_manager as user_manager
 from src.bot.bot_callback_data import CallbackData
-from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
+from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu, refresh_main_menus_for_all_admins
 from src.bot.bot_message_persistence import load_menu_message_id
 from src.bot.bot_text_utils import escape_md_v2
 
 logger = logging.getLogger(__name__)
 
-PENDING_ACCESS_REQUESTS_TITLE_TEMPLATE_RAW = "🔑 Pending User Access Requests (Page {current_page}/{total_pages})"
+PENDING_ACCESS_REQUESTS_TITLE_MD2_TEMPLATE = "🔑 Pending User Access Requests \\(Page {current_page}/{total_pages}\\)"
 ITEMS_PER_PAGE_ACCESS_REQUESTS = 5
 ASSIGN_ROLE_MENU_TEXT_RAW_MD2_TEMPLATE = "👤 Assign Role for User: {username} \\({chat_id}\\)"
 
@@ -66,10 +66,10 @@ async def display_pending_access_requests_menu(update: Update, context: ContextT
     page_items = pending_requests_list[start_index:end_index]
 
     keyboard = []
-    title_template_for_escape = PENDING_ACCESS_REQUESTS_TITLE_TEMPLATE_RAW.replace(
-        "(", "\\(").replace(")", "\\)")
-    menu_title_display = escape_md_v2(title_template_for_escape.format(
-        current_page=current_page, total_pages=total_pages))
+    menu_title_display = PENDING_ACCESS_REQUESTS_TITLE_MD2_TEMPLATE.format(
+        current_page=escape_md_v2(str(current_page)),
+        total_pages=escape_md_v2(str(total_pages))
+    )
 
     status_message_parts = [
         f"Displaying pending access requests page {current_page} of {total_pages}."]
@@ -160,6 +160,7 @@ async def display_pending_access_requests_menu(update: Update, context: ContextT
 
 async def handle_approve_access_request_initiate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+
     admin_chat_id = update.effective_chat.id
 
     admin_user_role = app_config_holder.get_user_role(str(admin_chat_id))
@@ -186,13 +187,17 @@ async def handle_approve_access_request_initiate(update: Update, context: Contex
 
     keyboard = [
         [InlineKeyboardButton(f"Assign as {app_config_holder.ROLE_STANDARD_USER}",
-                              callback_data=f"{CallbackData.ACCESS_REQUEST_ASSIGN_ROLE_PREFIX.value}{requester_chat_id_str}_{app_config_holder.ROLE_STANDARD_USER}")],
-        [InlineKeyboardButton(f"Assign as {app_config_holder.ROLE_ADMIN}",
-                              callback_data=f"{CallbackData.ACCESS_REQUEST_ASSIGN_ROLE_PREFIX.value}{requester_chat_id_str}_{app_config_holder.ROLE_ADMIN}")],
+                              callback_data=f"{CallbackData.ACCESS_REQUEST_ASSIGN_ROLE_PREFIX.value}{requester_chat_id_str}_{app_config_holder.ROLE_STANDARD_USER}")]
+    ]
 
+    if app_config_holder.is_primary_admin(str(admin_chat_id)):
+        keyboard.append([InlineKeyboardButton(f"Assign as {app_config_holder.ROLE_ADMIN}",
+                                              callback_data=f"{CallbackData.ACCESS_REQUEST_ASSIGN_ROLE_PREFIX.value}{requester_chat_id_str}_{app_config_holder.ROLE_ADMIN}")])
+
+    keyboard.append(
         [InlineKeyboardButton(
             "🔙 Cancel Approval", callback_data=CallbackData.CMD_ADMIN_VIEW_ACCESS_REQUESTS.value)]
-    ]
+    )
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     escaped_req_username = escape_md_v2(requester_username)
@@ -223,6 +228,7 @@ async def handle_approve_access_request_initiate(update: Update, context: Contex
 
 async def handle_approve_access_request_assign_role(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+
     admin_chat_id = update.effective_chat.id
 
     admin_user_role = app_config_holder.get_user_role(str(admin_chat_id))
@@ -239,11 +245,19 @@ async def handle_approve_access_request_assign_role(update: Update, context: Con
         return
 
     requester_chat_id_str, assigned_role = parts[0], parts[1]
+
+    if assigned_role == app_config_holder.ROLE_ADMIN and not app_config_holder.is_primary_admin(str(admin_chat_id)):
+        logger.warning(
+            f"Non-Primary Admin {admin_chat_id} attempted to assign ROLE_ADMIN to {requester_chat_id_str}. Denied.")
+        await query.answer("Only the Primary Administrator can assign Admin roles.", show_alert=True)
+
+        await display_pending_access_requests_menu(update, context, page=context.user_data.get('admin_access_requests_current_page', 1))
+        return
+
     await query.answer(f"Assigning role {assigned_role}...")
 
     approving_user_context = context.user_data.get('approving_access_for_user')
     if not approving_user_context or approving_user_context.get("chat_id") != requester_chat_id_str:
-
         pending_reqs = user_manager.get_pending_access_requests()
         requester_data = pending_reqs.get(requester_chat_id_str)
         requester_username = requester_data.get(
@@ -252,17 +266,18 @@ async def handle_approve_access_request_assign_role(update: Update, context: Con
         requester_username = approving_user_context.get("username")
 
     if user_manager.add_approved_user(requester_chat_id_str, requester_username, assigned_role):
-
         success_msg_admin = f"✅ Access for {escape_md_v2(requester_username)} \\({escape_md_v2(requester_chat_id_str)}\\) approved as {escape_md_v2(assigned_role)}\\."
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, success_msg_admin, parse_mode="MarkdownV2")
 
         await show_or_edit_main_menu(requester_chat_id_str, context, force_send_new=True)
-
+        welcome_status_text = f"Welcome, {escape_md_v2(requester_username)}\\! Your main menu is ready\\."
+        await send_or_edit_universal_status_message(context.bot, int(requester_chat_id_str), welcome_status_text, parse_mode="MarkdownV2", force_send_new=True)
     else:
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, f"⚠️ Failed to approve access for {escape_md_v2(requester_username)}. See logs.", parse_mode="MarkdownV2")
 
     context.user_data.pop('approving_access_for_user', None)
     await display_pending_access_requests_menu(update, context, page=context.user_data.get('admin_access_requests_current_page', 1))
+    await refresh_main_menus_for_all_admins(context)
 
 
 async def handle_deny_access_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -284,10 +299,10 @@ async def handle_deny_access_request(update: Update, context: ContextTypes.DEFAU
         "username", f"User_{requester_chat_id_str}") if requester_data else f"User_{requester_chat_id_str}"
 
     if user_manager.remove_pending_access_request(requester_chat_id_str):
-        success_msg_admin = f"🚫 Access for {escape_md_v2(requester_username)} ({escape_md_v2(requester_chat_id_str)}) has been denied."
+        success_msg_admin = f"🚫 Access for {escape_md_v2(requester_username)} \\({escape_md_v2(requester_chat_id_str)}\\) has been denied\\."
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, success_msg_admin, parse_mode="MarkdownV2")
-
     else:
         await send_or_edit_universal_status_message(context.bot, admin_chat_id, f"⚠️ User {escape_md_v2(requester_username)} not found in pending list or error removing. They may have been processed already.", parse_mode="MarkdownV2")
 
     await display_pending_access_requests_menu(update, context, page=context.user_data.get('admin_access_requests_current_page', 1))
+    await refresh_main_menus_for_all_admins(context)

@@ -1,6 +1,6 @@
 import logging
 from telegram import Update, Bot, BotCommand, BotCommandScopeChat, BotCommandScopeDefault
-from telegram.ext import ContextTypes, Application, CallbackContext
+from telegram.ext import ContextTypes, Application, CallbackContext, JobQueue
 from telegram.error import BadRequest, RetryAfter, TimedOut, NetworkError
 
 import src.app.app_config_holder as app_config_holder
@@ -9,6 +9,7 @@ from .bot_message_persistence import (
     load_universal_status_message_id, save_universal_status_message_id, delete_universal_status_message_id_file
 )
 from src.handlers.menu_handler_main_builder import build_main_menu_content
+import src.app.user_manager as user_manager
 
 logger = logging.getLogger(__name__)
 
@@ -250,3 +251,44 @@ async def set_bot_commands(application: Application):
     except Exception as e:
         logger.warning(
             f"Could not set bot commands generally: {e}", exc_info=False)
+
+
+async def refresh_main_menus_for_all_admins(context_or_app: Application | CallbackContext):
+    """
+    Attempts to refresh/resend the main menu for all known administrators.
+    """
+    logger.info("Attempting to refresh main menus for all admins.")
+    admin_chat_ids_to_refresh = set()
+
+    primary_admin_id_str = app_config_holder.get_chat_id_str()
+    if primary_admin_id_str:
+        admin_chat_ids_to_refresh.add(primary_admin_id_str)
+
+    all_users = user_manager.get_all_users_from_state()
+    for user_id_str, user_data in all_users.items():
+        if user_data.get("role") == app_config_holder.ROLE_ADMIN:
+            admin_chat_ids_to_refresh.add(user_id_str)
+
+    if not admin_chat_ids_to_refresh:
+        logger.info("No admins found to refresh menus for.")
+        return
+
+    for admin_id_str in admin_chat_ids_to_refresh:
+        try:
+
+            app_instance = None
+            if isinstance(context_or_app, Application):
+                app_instance = context_or_app
+            elif isinstance(context_or_app, CallbackContext):
+                app_instance = context_or_app.application
+
+            if app_instance:
+                await show_or_edit_main_menu(admin_id_str, app_instance, force_send_new=False)
+                logger.info(
+                    f"Requested main menu refresh for admin: {admin_id_str}")
+            else:
+                logger.error(
+                    f"Could not get Application instance to refresh menu for admin {admin_id_str}")
+        except Exception as e:
+            logger.error(
+                f"Failed to refresh main menu for admin {admin_id_str}: {e}", exc_info=True)

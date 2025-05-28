@@ -20,7 +20,7 @@ from src.bot.bot_text_utils import escape_md_v1, escape_md_v2, format_media_titl
 
 logger = logging.getLogger(__name__)
 
-ADD_SHOW_SEARCH_RESULTS_TEXT_TEMPLATE = "🎞️ Sonarr Search Results (Page {current_page}/{total_pages}):"
+ADD_SHOW_SEARCH_RESULTS_TEXT_MD2_TEMPLATE = "🎞️ Sonarr Search Results \\(Page {current_page}/{total_pages}\\):"
 
 MAX_OVERVIEW_LENGTH_SONARR = 250
 
@@ -144,10 +144,9 @@ async def display_sonarr_search_results_page(update: Update, context: ContextTyp
                     callback_data=CallbackData.SONARR_CANCEL.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    menu_text_display_v2 = escape_md_v2(
-        ADD_SHOW_SEARCH_RESULTS_TEXT_TEMPLATE.format(
-            current_page=current_page, total_pages=total_pages)
-        .replace("(", "\\(").replace(")", "\\)")
+    menu_text_display_v2 = ADD_SHOW_SEARCH_RESULTS_TEXT_MD2_TEMPLATE.format(
+        current_page=escape_md_v2(str(current_page)),
+        total_pages=escape_md_v2(str(total_pages))
     )
 
     try:

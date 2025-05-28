@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.1.0] - 2025-05-29
+
+### Added
+-   **Role-Based Admin Assignment:** Only the Primary Administrator can assign other users the `ADMIN` role during the access request approval process. Other Admins can only approve new users as `STANDARD_USER`.
+
+### Changed
+-   **Media Request Workflow:** The status of a user's media request is now only changed from "pending" to "approved" or "add_failed" *after* an administrator successfully completes (or fails during) the Radarr/Sonarr add process. If an admin cancels the add flow after initially "approving" the request (but before adding), the request reverts to "pending".
+-   **Bot Startup Interface Refresh:** Upon bot startup, main menus and universal status messages are now refreshed for all known `ADMIN` and `STANDARD_USER` roles, not just the Primary Admin. `UNKNOWN` users are not affected by this startup refresh.
+
+### Fixed
+-   Resolved an issue where Standard Users were incorrectly presented with admin-level add options after selecting a media item from Radarr/Sonarr search results; they are now correctly routed to the "Submit Request" flow.
+-   Corrected several MarkdownV2 parsing errors in dynamically generated messages, particularly for the user access approval status message and ABDM download initiation message, to prevent `BadRequest` errors.
+-   Ensured that newly approved users receive an updated universal status message appropriate for their new role, in addition to their refreshed main menu.
+-   Addressed a potential `ImportError` related to `handle_request_access_button` by adjusting import strategy (though a more robust solution might have been implemented previously, this ensures it's noted as resolved).
+-   Fixed issues with `config.py` regeneration and validation where integer values (like `ABDM_PORT`) could be incorrectly written or validated as strings after GUI saves, leading to "invalid configuration" errors. Integer fields in `config_definitions.py` now use integer defaults, and regeneration/validation logic is more type-aware.
+-   Addressed several "Unrecognized command" errors by ensuring sub-menu navigation callbacks (e.g., for Plex Controls, Radarr/Sonarr Queues & Maintenance) are handled by specific `CallbackQueryHandler`s in `bot_telegram.py` rather than falling through to the generic main menu handler.
+
 ## [3.0.0] - 2025-05-27
 
 ### Added

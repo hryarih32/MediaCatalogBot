@@ -9,14 +9,14 @@ This guide explains how to use the various features of the Media Catalog Telegra
 
 ## Roles
 
-*   **Primary Administrator:** Full control, including `/settings` and managing dynamic launchers.
-*   **Administrator (`ADMIN`):** Access to most control features, media addition, and management of user media/access requests.
+*   **Primary Administrator:** Full control, including `/settings`, managing dynamic launchers, and assigning any role (`ADMIN` or `STANDARD_USER`) to approved users.
+*   **Administrator (`ADMIN`):** Access to most control features, media addition, and management of user media/access requests. Can approve new users only as `STANDARD_USER`.
 *   **Standard User (`STANDARD_USER`):** Can search/request media, view their requests, and search/browse Plex content including details.
 *   **Unknown User (`UNKNOWN`):** New users; can only "Request Access".
 
 ## Common Commands
 
-*   `/start` or `/home`: Displays the main menu. For unknown users, this shows the "Request Access" option.
+*   `/start` or `/home`: Displays the main menu (role-dependent). For new users, this includes an option to request access. All authenticated users' menus are refreshed on bot startup.
 *   `/settings`: (Primary Administrator only) Opens the GUI for bot configuration, user management, and dynamic launcher setup.
 *   `/status`: (Administrators and Standard Users) Refreshes the universal status message at the bottom of your chat with the bot.
 
@@ -32,7 +32,7 @@ The main menu buttons adapt based on your assigned role and enabled features.
     3.  Type the name and send it.
     4.  A list of search results will appear as buttons.
     5.  Click a result to see a confirmation screen.
-    6.  Click "✅ Submit Request" to send your request for admin approval.
+    6.  Click "✅ Submit Request" to send your request for admin approval. Admin menus will update with new request counts.
 *   **"🔍 Search Plex"**:
     1.  Click the button.
     2.  The bot will prompt you to enter your search query.
@@ -54,6 +54,7 @@ The main menu buttons adapt based on your assigned role and enabled features.
         *   "Add with Defaults": Adds the media using pre-defined quality/path settings.
         *   "Customize Settings": Allows you to choose root folder, quality profile, tags, etc. before adding.
         *   "Cancel Add".
+    *   If fulfilling an approved user request, the request status updates accurately upon successful add, failure, or cancellation of this add flow.
 *   **"📥 Add Download (ABDM)"** (Primary Administrator only, if ABDM is enabled):
     1.  Click the button.
     2.  The bot prompts for a URL.
@@ -68,7 +69,9 @@ The main menu buttons adapt based on your assigned role and enabled features.
 *   **"🔑 User Access (X)"**:
     *   `(X)` shows the number of pending user access requests.
     *   View a list of users requesting access.
-    *   Click "✅ Approve" for a user, then choose to assign them as `STANDARD_USER` or `ADMIN`.
+    *   Click "✅ Approve" for a user.
+        *   **Primary Admins** can assign the new user as `STANDARD_USER` or `ADMIN`.
+        *   **Other Admins** can only assign the new user as `STANDARD_USER`.
     *   Click "❌ Deny" to reject an access request.
 *   **"🎬 Radarr Controls"** (if Radarr is enabled):
     *   **"📥 View Download Queue"**: See items currently downloading in Radarr. Click an item for actions (Remove, Blocklist Only, Blocklist & Search).

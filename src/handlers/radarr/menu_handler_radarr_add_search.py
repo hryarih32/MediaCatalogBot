@@ -18,7 +18,7 @@ from src.bot.bot_text_utils import escape_md_v1, escape_md_v2
 
 logger = logging.getLogger(__name__)
 
-ADD_MOVIE_SEARCH_RESULTS_TEXT_TEMPLATE = "🎬 Radarr Search Results (Page {current_page}/{total_pages}):"
+ADD_MOVIE_SEARCH_RESULTS_TEXT_MD2_TEMPLATE = "🎬 Radarr Search Results \\(Page {current_page}/{total_pages}\\):"
 
 
 async def handle_radarr_search_initiation(update: Update, context: ContextTypes.DEFAULT_TYPE, query_text: str, chat_id: int):
@@ -142,11 +142,9 @@ async def display_radarr_search_results_page(update: Update, context: ContextTyp
                     callback_data=CallbackData.RADARR_CANCEL.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    menu_text_display_v2 = escape_md_v2(
-        ADD_MOVIE_SEARCH_RESULTS_TEXT_TEMPLATE.format(
-            current_page=current_page, total_pages=total_pages)
-
-        .replace("(", "\\(").replace(")", "\\)")
+    menu_text_display_v2 = ADD_MOVIE_SEARCH_RESULTS_TEXT_MD2_TEMPLATE.format(
+        current_page=escape_md_v2(str(current_page)),
+        total_pages=escape_md_v2(str(total_pages))
     )
 
     try:

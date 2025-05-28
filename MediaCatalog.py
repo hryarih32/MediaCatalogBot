@@ -1,4 +1,3 @@
-
 import logging
 import os
 import sys
@@ -17,6 +16,7 @@ from src.bot.bot_initialization import (
     send_or_edit_universal_status_message
 )
 from src.handlers.abdm import *
+
 from src.bot.bot_telegram import setup_handlers
 from src.app.app_setup import perform_initial_setup
 from src.app import app_config_holder
@@ -53,44 +53,61 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def post_init_tasks(application: Application) -> None:
     project_version = app_config_holder.get_project_version()
-    logger.info(f"Version {project_version} - Post-init tasks started.")
+    logger.info(
+        f"Version {project_version} - Post-init tasks started: Setting commands and refreshing menus for known users.")
     await set_bot_commands(application)
-    admin_chat_id_str = app_config_holder.get_chat_id_str()
-    if not admin_chat_id_str:
+
+    users_to_refresh = set()
+    primary_admin_id_str = app_config_holder.get_chat_id_str()
+    if primary_admin_id_str:
+        users_to_refresh.add(primary_admin_id_str)
+
+    all_bot_users = app_config_holder.user_manager_module.get_all_users_from_state()
+    for user_id_str, user_data in all_bot_users.items():
+        if user_data.get("role") in [app_config_holder.ROLE_ADMIN, app_config_holder.ROLE_STANDARD_USER]:
+            users_to_refresh.add(user_id_str)
+
+    if not users_to_refresh:
         logger.critical(
-            f"Version {project_version} - Admin CHAT_ID not found in post_init.")
-        raise RuntimeError("Admin CHAT_ID not configured.")
-    admin_chat_id = int(admin_chat_id_str)
-    logger.info(
-        f"Post-init: Sending new main menu (force_send_new=True) for chat_id: {admin_chat_id}")
-    menu_msg_id = await show_or_edit_main_menu(admin_chat_id_str, application, force_send_new=True)
-    if not menu_msg_id:
-        logger.error("Post-init: Failed to send main menu message.")
-    else:
+            f"Version {project_version} - No Admin or Standard users found to send initial menu to during post_init.")
+
+        return
+
+    for user_id_to_refresh_str in users_to_refresh:
+        user_id_to_refresh_int = int(user_id_to_refresh_str)
         logger.info(
-            f"Post-init: Main menu sent/resent. Message ID: {menu_msg_id}")
-    initial_status_text = "⏳ Media Bot is active. Awaiting commands..."
-    enabled_features_count = sum([
-        app_config_holder.is_plex_enabled(), app_config_holder.is_radarr_enabled(),
-        app_config_holder.is_sonarr_enabled(), app_config_holder.is_pc_control_enabled(),
-        any(app_config_holder.is_script_enabled(i) for i in range(1, 4))
-    ])
-    if enabled_features_count == 0:
-        initial_status_text = "⚠️ No features enabled. Check /settings."
+            f"Post-init: Refreshing interface for user: {user_id_to_refresh_str}")
+        menu_msg_id = await show_or_edit_main_menu(user_id_to_refresh_str, application, force_send_new=True)
+        if not menu_msg_id:
+            logger.error(
+                f"Post-init: Failed to send main menu message to user {user_id_to_refresh_str}.")
+        else:
+            logger.info(
+                f"Post-init: Main menu sent/refreshed for user {user_id_to_refresh_str}. Message ID: {menu_msg_id}")
+
+        initial_status_text = "⏳ Media Bot is back online. Main menu refreshed."
+
+        if app_config_holder.get_user_role(user_id_to_refresh_str) == app_config_holder.ROLE_ADMIN and \
+           not any([app_config_holder.is_plex_enabled(),
+                    app_config_holder.is_radarr_enabled(),
+                    app_config_holder.is_sonarr_enabled(),
+                    app_config_holder.is_pc_control_enabled(),
+                    app_config_holder.is_abdm_enabled()]):
+            initial_status_text = "⚠️ No features enabled. Check /settings. Bot is online."
+
+        universal_msg_id = await send_or_edit_universal_status_message(
+            application.bot, user_id_to_refresh_int, initial_status_text,
+            parse_mode=None, force_send_new=True
+        )
+        if not universal_msg_id:
+            logger.error(
+                f"Post-init: Failed to send initial universal status message to user {user_id_to_refresh_str}.")
+        else:
+            logger.info(
+                f"Post-init: Universal status sent/refreshed for user {user_id_to_refresh_str}. Message ID: {universal_msg_id}")
+
     logger.info(
-        f"Post-init: Sending new universal status (force_send_new=True): {initial_status_text}")
-    universal_msg_id = await send_or_edit_universal_status_message(
-        application.bot, admin_chat_id, initial_status_text,
-        parse_mode=None, force_send_new=True
-    )
-    if not universal_msg_id:
-        logger.error(
-            "Post-init: Failed to send initial universal status message.")
-    else:
-        logger.info(
-            f"Post-init: Universal status sent/resent. Message ID: {universal_msg_id}")
-    logger.info(
-        f"Version {project_version} - Post-init tasks complete. Menu ID: {menu_msg_id}, Status ID: {universal_msg_id}")
+        f"Version {project_version} - Post-init tasks complete for all known Admin/Standard users.")
 
 
 def main():

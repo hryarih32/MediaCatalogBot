@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 import src.app.app_config_holder as app_config_holder
 import src.app.user_manager as user_manager
+from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu, refresh_main_menus_for_all_admins
 from src.bot.bot_text_utils import escape_md_v2
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ async def handle_request_access_button(update: Update, context: ContextTypes.DEF
             "✅ Your access request has been submitted. An administrator will review it shortly.",
             parse_mode=None
         )
+        await refresh_main_menus_for_all_admins(context)
 
     else:
 

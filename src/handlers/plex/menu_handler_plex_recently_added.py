@@ -16,7 +16,7 @@ from src.handlers.plex.menu_handler_plex_controls import display_plex_controls_m
 logger = logging.getLogger(__name__)
 
 PLEX_LIBRARY_LIST_TEXT_RAW = "📚 Plex Libraries - Recently Added:"
-PLEX_RECENTLY_ADDED_ITEMS_TEXT_TEMPLATE_RAW = "🆕 Recently Added in *{library_name}* (Page {current_page}/{total_pages}):"
+PLEX_RECENTLY_ADDED_ITEMS_TEXT_TEMPLATE_MD2 = "🆕 Recently Added in *{library_name}* \\(Page {current_page}/{total_pages}\\):"
 
 
 async def plex_recently_added_select_library_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -58,8 +58,7 @@ async def plex_recently_added_select_library_callback(update: Update, context: C
                     callback_data=CallbackData.CMD_PLEX_CONTROLS.value)])
     reply_markup = InlineKeyboardMarkup(keyboard)
     menu_message_id = load_menu_message_id(str(chat_id))
-    escaped_menu_title = escape_md_v2(
-        PLEX_LIBRARY_LIST_TEXT_RAW.replace("-", "\\-"))
+    escaped_menu_title = escape_md_v2(PLEX_LIBRARY_LIST_TEXT_RAW)
 
     if menu_message_id:
         try:
@@ -164,12 +163,12 @@ async def plex_recently_added_show_results_menu(update: Update, context: Context
             library_name_raw = lib_item.get('title', library_name_raw)
             break
 
-    escaped_library_name_status = escape_md_v1(library_name_raw)
+    escaped_library_name_status_v2 = escape_md_v2(library_name_raw)
 
     all_items = context.user_data.get('plex_recently_added_all_items')
 
     if not all_items or query.data.startswith(CallbackData.CMD_PLEX_RECENTLY_ADDED_SHOW_ITEMS_FOR_LIB_PREFIX.value):
-        await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Fetching recently added for '{escaped_library_name_status}'...", parse_mode="Markdown")
+        await send_or_edit_universal_status_message(context.bot, chat_id, f"⏳ Fetching recently added for '{escaped_library_name_status_v2}'\\.\\.\\.", parse_mode="MarkdownV2")
         max_fetch = app_config_holder.get_add_media_max_search_results()
         results_data = get_recently_added_from_library(
             library_key, max_items=max_fetch)
@@ -182,9 +181,9 @@ async def plex_recently_added_show_results_menu(update: Update, context: Context
         context.user_data['plex_recently_added_all_items'] = all_items
         status_message_on_fetch = results_data.get(
 
-            "message", f"Recently added items for '{escaped_library_name_status}':")
+            "message", f"Recently added items for '{library_name_raw}':")
 
-        await send_or_edit_universal_status_message(context.bot, chat_id, status_message_on_fetch, parse_mode="Markdown")
+        await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(status_message_on_fetch), parse_mode="MarkdownV2")
 
     items_per_page = app_config_holder.get_add_media_items_per_page()
     total_records = len(all_items)
@@ -239,8 +238,11 @@ async def plex_recently_added_show_results_menu(update: Update, context: Context
     if menu_message_id:
         try:
             escaped_library_name_menu_v2 = escape_md_v2(library_name_raw)
-            menu_text_display = PLEX_RECENTLY_ADDED_ITEMS_TEXT_TEMPLATE_RAW.format(
-                library_name=escaped_library_name_menu_v2, current_page=current_page, total_pages=total_pages).replace("(", "\\(").replace(")", "\\)")
+            menu_text_display = PLEX_RECENTLY_ADDED_ITEMS_TEXT_TEMPLATE_MD2.format(
+                library_name=escaped_library_name_menu_v2,
+                current_page=escape_md_v2(str(current_page)),
+                total_pages=escape_md_v2(str(total_pages))
+            )
 
             current_content_key = f"menu_message_content_{chat_id}_{menu_message_id}"
             old_content_tuple = context.bot_data.get(current_content_key)
