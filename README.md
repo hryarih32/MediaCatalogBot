@@ -1,6 +1,6 @@
 # Media Catalog Telegram Bot
 
-**Version: 3.1.0**
+**Version: 3.1.2**
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
 
 **License:** GNU General Public License v3.0 (see `LICENSE` file)

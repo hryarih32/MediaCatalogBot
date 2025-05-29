@@ -23,8 +23,8 @@ from src.app import app_config_holder
 
 logger = logging.getLogger(__name__)
 
-MAX_STARTUP_RETRIES = 50
-STARTUP_RETRY_DELAY = 30
+MAX_STARTUP_RETRIES = 100
+STARTUP_RETRY_DELAY = 60
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:

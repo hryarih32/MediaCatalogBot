@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.1.2] - 2025-05-29
+
+### Changed
+-   **GUI Configuration Panel:**
+    -   The configuration GUI window is now a fixed, smaller width (approx. 680px, reduced from ~850px) and is non-resizable for a more consistent footprint. Column widths for Treeviews and entry field sizes have been adjusted accordingly.
+    -   The GUI window now attempts to set itself as "always on top" when opened to ensure it's visible, especially when launched from the background bot process.
+    -   Corrected an issue where the mouse wheel could scroll the GUI content higher than the first line.
+    -   Improved the taskbar icon display for the GUI on Windows by using `ctypes` to interact with the Windows API, providing a more reliable custom icon experience.
+
+### Added
+-   **GUI Configuration Panel:**
+    -   Added an "Open Log Folder" button to the main button bar of the configuration GUI, allowing quick access to the bot's log directory.
+
 ## [3.1.1] - 2025-05-29
 
 ### Changed

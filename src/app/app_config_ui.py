@@ -1,4 +1,3 @@
-
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import os
@@ -6,6 +5,11 @@ import logging
 import json
 import datetime
 import uuid
+import subprocess
+import sys
+if os.name == 'nt':
+    import ctypes
+    from ctypes import wintypes
 
 from src.config.config_definitions import (
     CONFIG_KEYS_CORE, CONFIG_KEYS_PLEX, CONFIG_KEYS_RADARR, CONFIG_KEYS_SONARR,
@@ -13,11 +17,19 @@ from src.config.config_definitions import (
     ALL_USER_CONFIG_KEYS, CONFIG_FIELD_DEFINITIONS, CONFIG_KEYS_ABDM, LOG_LEVEL_OPTIONS
 )
 from src.app.app_config_holder import ROLE_ADMIN, ROLE_STANDARD_USER
-from .app_file_utils import get_ico_file_path, get_bot_state_file_path, load_json_data, save_json_data
+from .app_file_utils import get_ico_file_path, get_bot_state_file_path, load_json_data, save_json_data, get_log_directory_path
 import src.app.user_manager as user_manager
 from src.app.user_manager import DEFAULT_BOT_STATE
 
 logger_ui = logging.getLogger(__name__ + "_ui")
+
+# Windows API constants for setting icon
+if os.name == 'nt':
+    LR_LOADFROMFILE = 0x00000010
+    IMAGE_ICON = 1
+    WM_SETICON = 0x0080
+    ICON_SMALL = 0
+    ICON_BIG = 1
 
 
 def run_config_ui(config_file_to_write_path, initial_values=None):
@@ -66,12 +78,57 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
 
     root = tk.Tk()
     root.title("Media Bot Configuration")
-    root.resizable(True, True)
+    root.resizable(False, False)
 
     try:
         icon_path = get_ico_file_path()
         if os.path.exists(icon_path):
-            root.iconbitmap(icon_path)
+            root.iconbitmap(icon_path)  # For window title bar
+            if os.name == 'nt':
+                try:
+                    # This often helps with the taskbar icon on Windows more reliably
+                    # Get the window handle (HWND)
+                    root.update_idletasks()  # Ensure window exists before getting HWND
+                    hwnd = ctypes.windll.user32.GetParent(root.winfo_id())
+                    if not hwnd:  # If GetParent fails, try getting the direct window
+                        hwnd = root.winfo_id()
+
+                    # Load the icon using Windows API
+                    h_icon = ctypes.windll.user32.LoadImageW(
+                        # hInstance (NULL for LR_LOADFROMFILE)
+                        0,
+                        icon_path,               # LPCWSTR lpszName
+                        # UINT uType (IMAGE_ICON for icons)
+                        IMAGE_ICON,
+                        # int cxDesired (0 for default size)
+                        0,
+                        # int cyDesired (0 for default size)
+                        0,
+                        # UINT fuLoad (LR_LOADFROMFILE to load from file)
+                        LR_LOADFROMFILE
+                    )
+                    if h_icon:
+                        # Set for big icon (taskbar, Alt+Tab)
+                        ctypes.windll.user32.SendMessageW(
+                            hwnd, WM_SETICON, ICON_BIG, h_icon)
+                        # Set for small icon (title bar, if iconbitmap didn't cover it fully)
+                        ctypes.windll.user32.SendMessageW(
+                            hwnd, WM_SETICON, ICON_SMALL, h_icon)
+                        logger_ui.info(
+                            f"Successfully set Windows taskbar icon using ctypes for HWND: {hwnd}")
+                    else:
+                        logger_ui.warning(
+                            f"LoadImageW failed for icon: {icon_path}. Error code: {ctypes.get_last_error()}")
+                except Exception as e_ctypes:
+                    logger_ui.error(
+                        f"ctypes error setting taskbar icon: {e_ctypes}", exc_info=False)
+                    # Fallback if ctypes fails, try wm_iconbitmap
+                    try:
+                        root.wm_iconbitmap(icon_path)
+                    except tk.TclError:
+                        logger_ui.debug(
+                            "root.wm_iconbitmap(icon_path) also failed.")
+                        pass
         else:
             logger_ui.warning(f"Window icon not found: {icon_path}")
     except Exception as e:
@@ -95,18 +152,28 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
 
     def _on_mousewheel(event):
         delta = 0
-        if event.num == 4:
+        # Linux uses event.num for mouse wheel
+        if event.num == 4:  # Scroll up
             delta = -1
-        elif event.num == 5:
+        elif event.num == 5:  # Scroll down
             delta = 1
-        else:
+        else:  # Windows/macOS use event.delta
             delta = int(-1 * (event.delta / 120))
+
+        # Prevent scrolling above the content
+        current_y_view = main_canvas.yview()
+        if current_y_view and len(current_y_view) > 0 and current_y_view[0] <= 0.0 and delta < 0:
+            return  # Already at the top and trying to scroll up, do nothing
+
         main_canvas.yview_scroll(delta, "units")
 
     for widget_to_bind_scroll in [main_canvas, scrollable_frame_for_notebook, root]:
-        widget_to_bind_scroll.bind_all("<MouseWheel>", _on_mousewheel)
-        widget_to_bind_scroll.bind_all("<Button-4>", _on_mousewheel)
-        widget_to_bind_scroll.bind_all("<Button-5>", _on_mousewheel)
+        widget_to_bind_scroll.bind_all(
+            "<MouseWheel>", _on_mousewheel)  # For Windows/macOS
+        widget_to_bind_scroll.bind_all(
+            "<Button-4>", _on_mousewheel)   # For Linux scroll up
+        widget_to_bind_scroll.bind_all(
+            "<Button-5>", _on_mousewheel)   # For Linux scroll down
 
     notebook = ttk.Notebook(scrollable_frame_for_notebook)
     notebook.pack(expand=True, fill="both", padx=10, pady=10)
@@ -157,16 +224,20 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         current_widgets = []
         if definition["type"] == "entry":
             entry_var = tk.StringVar(value=actual_initial_val)
-            entry = ttk.Entry(parent_frame, width=definition.get(
-                "width", 40), textvariable=entry_var)
+            # Use approx 80% of original width for entries, with a min
+            entry_width = max(20, int(definition.get("width", 40) * 0.8))
+            entry = ttk.Entry(parent_frame, width=entry_width,
+                              textvariable=entry_var)
             entry.grid(row=row_num, column=1, sticky=(tk.W, tk.E), pady=(
                 5, 5) if definition["type"] != "checkbutton" else (2, 2), padx=5, columnspan=col_span)
             entries_vars[key] = entry_var
             current_widgets.append(entry)
         elif definition["type"] == "combobox":
             combo_var = tk.StringVar(value=actual_initial_val)
+            # Approx 80% with min
+            combo_width = max(10, int(definition.get("width", 15) * 0.8))
             combobox = ttk.Combobox(parent_frame, textvariable=combo_var,
-                                    values=definition["options"], state="readonly", width=definition.get("width", 15)-2)
+                                    values=definition["options"], state="readonly", width=combo_width-2)
             combobox.grid(row=row_num, column=1, sticky=tk.W,
                           pady=(5, 5), padx=5, columnspan=col_span)
             entries_vars[key] = combo_var
@@ -177,7 +248,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     core_general_lf = ttk.LabelFrame(
         tab_core_general, text="Bot Core & General Configuration", padding="10")
     core_general_lf.pack(fill="x", expand=True, padx=5, pady=5)
-    core_general_lf.grid_columnconfigure(1, weight=1)
+    core_general_lf.grid_columnconfigure(1, weight=0)  # Prevent expansion
     cg_row = 0
     for key in CONFIG_KEYS_CORE:
         create_field(core_general_lf, key, CONFIG_FIELD_DEFINITIONS[key], cg_row, initial_values.get(
@@ -216,7 +287,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         service_lf = ttk.LabelFrame(
             tab_api_services, text=service_data["title"], padding="10")
         service_lf.pack(fill="x", expand=True, padx=5, pady=5)
-        service_lf.grid_columnconfigure(1, weight=1)
+        service_lf.grid_columnconfigure(1, weight=0)  # Prevent expansion
         s_row = 0
         enable_key = service_data["enable_key"]
         enable_def = CONFIG_FIELD_DEFINITIONS[enable_key]
@@ -245,8 +316,10 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     launcher_management_lf = ttk.LabelFrame(
         tab_launcher_management, text="Dynamic Launcher Configuration", padding="10")
     launcher_management_lf.pack(fill="both", expand=True, padx=5, pady=5)
-    launcher_management_lf.grid_columnconfigure(0, weight=1)
-    launcher_management_lf.grid_rowconfigure(1, weight=1)
+    launcher_management_lf.grid_columnconfigure(
+        0, weight=1)  # Tree parent frame
+    launcher_management_lf.grid_rowconfigure(
+        1, weight=1)  # Tree parent frame row
 
     migration_frame = ttk.Frame(launcher_management_lf)
     migration_frame.grid(row=0, column=0, columnspan=3,
@@ -311,9 +384,10 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     launcher_tree.heading("name", text="Launcher Name")
     launcher_tree.heading("path", text="Executable Path")
     launcher_tree.heading("subgroup", text="Subgroup")
-    launcher_tree.column("name", width=200, anchor=tk.W)
-    launcher_tree.column("path", width=350, anchor=tk.W)
-    launcher_tree.column("subgroup", width=150, anchor=tk.W)
+    # Adjusted widths for ~680px window
+    launcher_tree.column("name", width=120, anchor=tk.W, stretch=tk.NO)
+    launcher_tree.column("path", width=200, anchor=tk.W, stretch=tk.NO)
+    launcher_tree.column("subgroup", width=90, anchor=tk.W, stretch=tk.NO)
     launcher_tree_scrollbar_y = ttk.Scrollbar(
         launcher_tree_frame, orient="vertical", command=launcher_tree.yview)
     launcher_tree.configure(yscrollcommand=launcher_tree_scrollbar_y.set)
@@ -326,13 +400,14 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     launcher_form_lf = ttk.LabelFrame(
         launcher_controls_frame, text="Add/Edit Launcher", padding="5")
     launcher_form_lf.pack(fill="x", expand=True)
-    launcher_form_lf.grid_columnconfigure(1, weight=1)
+    # Prevent expansion of entry column
+    launcher_form_lf.grid_columnconfigure(1, weight=0)
 
     ttk.Label(launcher_form_lf, text="Name:").grid(
         row=0, column=0, sticky=tk.W, padx=2, pady=2)
     add_launcher_name_var = tk.StringVar()
     add_launcher_name_entry = ttk.Entry(
-        launcher_form_lf, textvariable=add_launcher_name_var, width=40)
+        launcher_form_lf, textvariable=add_launcher_name_var, width=30)  # Adjusted width
     add_launcher_name_entry.grid(
         row=0, column=1, columnspan=2, sticky=tk.EW, padx=2, pady=2)
     ttk.Label(launcher_form_lf, text="Path:").grid(
@@ -341,10 +416,12 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     add_launcher_path_entry_frame = ttk.Frame(launcher_form_lf)
     add_launcher_path_entry_frame.grid(
         row=1, column=1, columnspan=2, sticky=tk.EW, padx=2, pady=2)
-    add_launcher_path_entry_frame.grid_columnconfigure(0, weight=1)
+    add_launcher_path_entry_frame.grid_columnconfigure(
+        0, weight=0)  # Prevent expansion of path entry
     add_launcher_path_entry = ttk.Entry(
-        add_launcher_path_entry_frame, textvariable=add_launcher_path_var)
-    add_launcher_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        add_launcher_path_entry_frame, textvariable=add_launcher_path_var, width=20)  # Adjusted width
+    add_launcher_path_entry.pack(
+        side=tk.LEFT, fill=tk.X, expand=False)  # No expand
 
     def browse_launcher_path_gui(e_var=add_launcher_path_var):
         current_path_val = e_var.get()
@@ -364,7 +441,7 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     add_launcher_subgroup_var = tk.StringVar()
 
     launcher_subgroup_form_combo = ttk.Combobox(
-        launcher_form_lf, textvariable=add_launcher_subgroup_var, width=37)
+        launcher_form_lf, textvariable=add_launcher_subgroup_var, width=28)  # Adjusted width
     launcher_subgroup_form_combo.grid(
         row=2, column=1, columnspan=2, sticky=tk.EW, padx=2, pady=2)
 
@@ -464,8 +541,8 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     user_management_lf = ttk.LabelFrame(
         tab_user_management, text="Manage Users", padding="10")
     user_management_lf.pack(fill="both", expand=True, padx=5, pady=5)
-    user_management_lf.grid_columnconfigure(0, weight=1)
-    user_management_lf.grid_rowconfigure(0, weight=1)
+    user_management_lf.grid_columnconfigure(0, weight=1)  # Tree parent frame
+    user_management_lf.grid_rowconfigure(0, weight=1)  # Tree parent frame row
     user_tree_frame = ttk.Frame(user_management_lf)
     user_tree_frame.grid(row=0, column=0, columnspan=3,
                          sticky="nsew", pady=(0, 10))
@@ -477,9 +554,10 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
     user_tree.heading("chat_id", text="Chat ID")
     user_tree.heading("username", text="Username")
     user_tree.heading("role", text="Role")
-    user_tree.column("chat_id", width=150, anchor=tk.W)
-    user_tree.column("username", width=200, anchor=tk.W)
-    user_tree.column("role", width=100, anchor=tk.W)
+    # Adjusted widths for ~680px window
+    user_tree.column("chat_id", width=100, anchor=tk.W, stretch=tk.NO)
+    user_tree.column("username", width=150, anchor=tk.W, stretch=tk.NO)
+    user_tree.column("role", width=70, anchor=tk.W, stretch=tk.NO)
     user_tree_scrollbar_y = ttk.Scrollbar(
         user_tree_frame, orient="vertical", command=user_tree.yview)
     user_tree.configure(yscrollcommand=user_tree_scrollbar_y.set)
@@ -808,27 +886,68 @@ def run_config_ui(config_file_to_write_path, initial_values=None):
         result["saved"] = True
         root.destroy()
 
+    def open_log_folder_action():
+        log_dir_path = get_log_directory_path()
+        if not os.path.exists(log_dir_path):
+            # Attempt to create it if it doesn't exist (though setup_logging usually does this)
+            try:
+                os.makedirs(log_dir_path, exist_ok=True)
+                logger_ui.info(f"Log directory created at: {log_dir_path}")
+            except OSError as e:
+                messagebox.showerror(
+                    "Error", f"Log directory could not be created:\n{log_dir_path}\nError: {e}", parent=root)
+                return
+
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(log_dir_path)
+            elif sys.platform == 'darwin':  # macOS
+                subprocess.Popen(['open', log_dir_path])
+            else:  # Linux and other Unix-like
+                subprocess.Popen(['xdg-open', log_dir_path])
+            logger_ui.info(f"Attempted to open log folder: {log_dir_path}")
+        except Exception as e:
+            logger_ui.error(
+                f"Failed to open log folder '{log_dir_path}': {e}", exc_info=True)
+            messagebox.showerror(
+                "Error", f"Could not open log folder:\n{log_dir_path}\n\nError: {e}", parent=root)
+
     button_frame = ttk.Frame(scrollable_frame_for_notebook)
     button_frame.pack(pady=15, fill='x')
     center_button_subframe = ttk.Frame(button_frame)
     center_button_subframe.pack()
+
     save_button = ttk.Button(
         center_button_subframe, text="Save All Configuration", command=save_all_configurations)
     save_button.pack(side=tk.LEFT, padx=5)
+
+    open_log_folder_button = ttk.Button(
+        center_button_subframe, text="Open Log Folder", command=open_log_folder_action)
+    open_log_folder_button.pack(side=tk.LEFT, padx=5)
+
     cancel_button = ttk.Button(
         center_button_subframe, text="Cancel", command=root.destroy)
     cancel_button.pack(side=tk.LEFT, padx=5)
+
     root.update_idletasks()
-    initial_width = 950
-    initial_height = 850
+    initial_width = 680  # Adjusted fixed width (80% of original 850)
+    initial_height = 750  # Kept height, can be adjusted if needed
     root.geometry(f'{initial_width}x{initial_height}')
-    root.minsize(900, 700)
-    root.update_idletasks()
-    width = root.winfo_width()
-    height = root.winfo_height()
+    root.minsize(initial_width, initial_height)  # Set minsize to fixed size
+
+    # Center the window
+    root.update_idletasks()  # Ensure dimensions are calculated
+    width = root.winfo_width()  # Should be initial_width now
+    height = root.winfo_height()  # Should be initial_height now
     x_pos = (root.winfo_screenwidth() // 2) - (width // 2)
     y_pos = (root.winfo_screenheight() // 2) - (height // 2)
     root.geometry(f'{width}x{height}+{x_pos}+{y_pos}')
+
+    # Make window topmost
+    root.attributes('-topmost', True)
+    root.lift()
+    root.focus_force()
+
     root.protocol("WM_DELETE_WINDOW", root.destroy)
     root.mainloop()
     return result
@@ -843,6 +962,12 @@ if __name__ == '__main__':
         os.path.dirname(__file__), '..', '..', 'data_test_ui_phase_a_v2'))
     if not os.path.exists(mock_data_dir):
         os.makedirs(mock_data_dir)
+
+    # Ensure log sub-directory exists for testing the "Open Log Folder" button
+    mock_log_dir = os.path.join(mock_data_dir, 'log')
+    if not os.path.exists(mock_log_dir):
+        os.makedirs(mock_log_dir)
+
     mock_config_path = os.path.join(
         mock_data_dir, "test_config_generated_phase_a_v2.py")
     mock_bot_state_path_val = os.path.join(
@@ -868,8 +993,13 @@ if __name__ == '__main__':
         json.dump(initial_test_bot_state, f_state, indent=4)
     import src.app.app_file_utils as app_file_utils_module
     original_get_bot_state_file_path_real = app_file_utils_module.get_bot_state_file_path
+    original_get_log_directory_path = app_file_utils_module.get_log_directory_path
     def mock_get_bot_state_file_path_for_test(): return mock_bot_state_path_val
+    # Use the created mock log dir
+    def mock_get_log_dir_path_for_test(): return mock_log_dir
     app_file_utils_module.get_bot_state_file_path = mock_get_bot_state_file_path_for_test
+    app_file_utils_module.get_log_directory_path = mock_get_log_dir_path_for_test
+
     try:
         ui_result = run_config_ui(
             mock_config_path, mock_initial_config_values_phase_a)
@@ -889,3 +1019,4 @@ if __name__ == '__main__':
                 f"Affected users for refresh: {ui_result['affected_users_for_refresh']}")
     finally:
         app_file_utils_module.get_bot_state_file_path = original_get_bot_state_file_path_real
+        app_file_utils_module.get_log_directory_path = original_get_log_directory_path
