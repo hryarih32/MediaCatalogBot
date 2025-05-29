@@ -1,4 +1,3 @@
-
 import logging
 import os
 import time
@@ -144,13 +143,17 @@ async def execute_actual_power_off_action_job(context: ContextTypes.DEFAULT_TYPE
             if chat_id:
                 final_exec_message = f"✅ PC {action_type.upper()} command sent to OS. This may take a moment."
 
-                await context.bot.send_message(chat_id=chat_id, text=final_exec_message)
+                await send_or_edit_universal_status_message(
+                    context.bot, chat_id, final_exec_message, parse_mode=None, force_send_new=False
+                )
             os.system(command_to_run)
         except Exception as e:
             logger.error(
                 f"Exception during scheduled PC power action '{action_type}': {e}", exc_info=True)
             if chat_id:
-                await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Error executing PC {action_type.upper()}: {e}")
+
+                error_message_text = f"⚠️ Error executing PC {action_type.upper()}: {str(e)[:200]}"
+                await send_or_edit_universal_status_message(context.bot, chat_id, error_message_text, parse_mode=None, force_send_new=False)
     else:
         logger.error(
             f"execute_actual_power_off_action_job called without a command for action '{action_type}'.")
@@ -243,9 +246,11 @@ async def handle_power_action(update: Update, context: ContextTypes.DEFAULT_TYPE
             context.chat_data.pop('pc_pending_power_action', None)
             context.chat_data.pop('pc_pending_power_time', None)
             confirmation_timeout_jobs = job_queue.get_jobs_by_name(
-                f"clear_pending_pc_power_{chat_id}")
+
+                f"clear_pending_pc_power_{chat_id}_{pending_action}")
             for job in confirmation_timeout_jobs:
                 job.schedule_removal()
+                logger.info(f"Removed confirmation timeout job: {job.name}")
 
             job_queue.run_once(
                 execute_actual_power_off_action_job,
@@ -275,9 +280,11 @@ async def handle_power_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.chat_data.pop('pc_pending_power_time', None)
 
         confirmation_timeout_jobs = job_queue.get_jobs_by_name(
-            f"clear_pending_pc_power_{chat_id}")
+            f"clear_pending_pc_power_{chat_id}_{old_pending_action_name}")
         for job in confirmation_timeout_jobs:
             job.schedule_removal()
+            logger.info(
+                f"Removed confirmation timeout job due to new action: {job.name}")
         await send_or_edit_universal_status_message(context.bot, chat_id, f"Cancelled pending PC {old_pending_action_name.upper()}.", parse_mode=None)
 
         pending_action = None
@@ -292,6 +299,8 @@ async def handle_power_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         old_confirm_jobs = job_queue.get_jobs_by_name(
             f"clear_pending_pc_power_{chat_id}_{requested_action_type}")
         for old_job in old_confirm_jobs:
+            logger.info(
+                f"Removing pre-existing job before scheduling new one: {old_job.name}")
             old_job.schedule_removal()
 
         job_queue.run_once(

@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.1.1] - 2025-05-29
+
+### Changed
+-   **PC Power Control:** Universal status messages during the PC shutdown/restart sequence now consistently edit the existing status message instead of sometimes sending new messages, providing a cleaner user experience.
+-   **Admin Menu Refresh:** Admin main menus are now also refreshed immediately after a user submits a new media request or a new access request, ensuring dynamic counts on admin-facing buttons are updated promptly.
+
+### Fixed
+-   Corrected an issue where newly approved users might not receive an updated universal status message alongside their refreshed main menu.
+
 ## [3.1.0] - 2025-05-29
 
 ### Added
