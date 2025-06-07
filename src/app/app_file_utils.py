@@ -57,8 +57,7 @@ def get_log_directory_path():
         data_path = get_data_storage_path()
         log_dir = os.path.join(data_path, 'log')
         LOG_DIRECTORY_PATH_CACHE = os.path.normpath(log_dir)
-        # The actual creation is handled in setup_logging to avoid premature disk I/O
-        # from just querying the path.
+
     return LOG_DIRECTORY_PATH_CACHE
 
 

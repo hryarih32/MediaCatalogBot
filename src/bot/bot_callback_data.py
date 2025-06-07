@@ -115,6 +115,5 @@ class CallbackData(str, Enum):
     CMD_ADMIN_USER_CHANGE_ROLE_PREFIX = "admin_user_role_"
     CMD_ADMIN_USER_REMOVE_PREFIX = "admin_user_remove_"
     CMD_ADMIN_USER_ADD_INIT = "admin_user_add_init"
-    # Note: Adding user via text input for chat_id, then role selection via callback.
 
     CB_NO_OP = "cb_no_op"

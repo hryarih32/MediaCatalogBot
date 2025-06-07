@@ -131,7 +131,6 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(f"⏳ Blocklisting item {queue_item_id} (no search)..."), parse_mode="MarkdownV2")
         blocklist_success, result_message_raw = sonarr_remove_queue_item(
             queue_item_id, blocklist=True)
-        # For "Blocklist Only", no search is triggered regardless of blocklist_success.
 
         if context.user_data.get('current_queue_action_item'):
             del context.user_data['current_queue_action_item']
@@ -139,7 +138,7 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
     elif callback_data_str.startswith(CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value):
         payload = callback_data_str.replace(
             CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value, "")
-        parts = payload.split("_", 1)  # Max split 1
+        parts = payload.split("_", 1)
         queue_item_id = parts[0]
         media_search_id = parts[1] if len(parts) > 1 else "0"
 

@@ -136,7 +136,7 @@ def build_main_menu_content(version: str, user_role: str, chat_id_str: str):
         pending_media_req_count = get_pending_request_count()
         admin_media_req_button_text = f"📮 Media Requests ({pending_media_req_count}❗️)" if pending_media_req_count > 0 else "📮 Media Requests"
         keyboard.append([InlineKeyboardButton(admin_media_req_button_text,
-                                              callback_data=CallbackData.CMD_ADMIN_REQUESTS_MENU.value)])  # For media requests
+                                              callback_data=CallbackData.CMD_ADMIN_REQUESTS_MENU.value)])
 
         radarr_sonarr_controls_row = []
         if app_config_holder.is_radarr_enabled():

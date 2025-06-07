@@ -262,7 +262,6 @@ def setup_handlers(application: Application):
     application.add_handler(CallbackQueryHandler(handle_approve_access_request_assign_role,
                             pattern=rf"^{CallbackData.ACCESS_REQUEST_ASSIGN_ROLE_PREFIX.value}.+$"))
 
-    # Unified Admin User & Access Request Management Handlers
     application.add_handler(CallbackQueryHandler(
         display_manage_users_menu, pattern=f"^{CallbackData.CMD_ADMIN_MANAGE_USERS_MENU.value}$"))
     application.add_handler(CallbackQueryHandler(
@@ -284,7 +283,7 @@ def setup_handlers(application: Application):
             cancel_add_user_conversation, pattern="^cancel_add_user$")],
     )
     application.add_handler(add_user_conv_handler)
-    # Handler for user list pagination within the unified menu
+
     application.add_handler(CallbackQueryHandler(
         display_manage_users_menu, pattern=rf"^{CallbackData.CMD_ADMIN_USER_PAGE_PREFIX.value}\d+$"))
 
@@ -422,7 +421,7 @@ def setup_handlers(application: Application):
         CallbackData.CMD_HOME_BACK.value, CallbackData.CMD_SETTINGS.value,
         CallbackData.CMD_ADD_MOVIE_INIT.value, CallbackData.CMD_ADD_SHOW_INIT.value,
         CallbackData.CMD_ADD_DOWNLOAD_INIT.value,
-        CallbackData.CMD_LAUNCHERS_MENU.value,  # Primary Admin
+        CallbackData.CMD_LAUNCHERS_MENU.value,
         CallbackData.CMD_PC_CONTROL_ROOT.value,
         CallbackData.CMD_RADARR_CONTROLS.value, CallbackData.CMD_SONARR_CONTROLS.value,
         CallbackData.CMD_PLEX_CONTROLS.value,
@@ -433,8 +432,8 @@ def setup_handlers(application: Application):
 
         CallbackData.SONARR_CANCEL.value,
         CallbackData.CMD_MY_REQUESTS_MENU.value, CallbackData.CMD_ADMIN_REQUESTS_MENU.value,
-        CallbackData.CMD_PLEX_INITIATE_SEARCH.value,  # Standard User + Admin
-        # Primary Admin (Unified Menu)
+        CallbackData.CMD_PLEX_INITIATE_SEARCH.value,
+
         CallbackData.CMD_ADMIN_MANAGE_USERS_MENU.value,
     ]
     regex_root_menu_exact_triggers = "^(" + "|".join(f"({re.escape(item)})" for item in list(
