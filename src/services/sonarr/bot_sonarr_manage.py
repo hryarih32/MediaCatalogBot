@@ -107,12 +107,12 @@ def trigger_missing_episode_search():
         return f"⚠️ Error initiating Sonarr search for wanted episodes: {type(e).__name__}. Check logs."
 
 
-def trigger_episode_search(episode_ids: list):
+def trigger_episode_search(episode_ids: list) -> tuple[bool, str]:
 
     if not episode_ids or not all(isinstance(eid, int) and eid > 0 for eid in episode_ids):
         logger.warning(
             f"Invalid episode_ids ({episode_ids}) provided for Sonarr search.")
-        return "ℹ️ No valid episode IDs provided for search."
+        return False, "ℹ️ No valid episode IDs provided for search."
     command_data = {
         "name": "EpisodeSearch", "episodeIds": episode_ids, "sendUpdatesToClient": True,
         "updateScheduledTask": False, "requiresDiskAccess": False, "isExclusive": True,
@@ -123,13 +123,13 @@ def trigger_episode_search(episode_ids: list):
         logger.info(
             f"Sonarr 'EpisodeSearch' command successfully queued for episode IDs: {episode_ids}.")
         if len(episode_ids) == 1:
-            return f"✅ Sonarr search initiated for episode ID {episode_ids[0]}."
+            return True, f"✅ Sonarr search initiated for episode ID {episode_ids[0]}."
         else:
-            return f"✅ Sonarr search initiated for {len(episode_ids)} episodes."
+            return True, f"✅ Sonarr search initiated for {len(episode_ids)} episodes."
     except Exception as e:
         logger.error(
             f"Error initiating Sonarr 'EpisodeSearch' for IDs {episode_ids}: {e}", exc_info=True)
-        return f"⚠️ Error initiating Sonarr episode search: {type(e).__name__}. Check logs."
+        return False, f"⚠️ Error initiating Sonarr episode search: {type(e).__name__}. Check logs."
 
 
 def get_sonarr_queue(page=1, page_size=10, sort_key="timeleft", sort_dir="asc", include_unknown_series_items=True):
@@ -160,7 +160,7 @@ def get_sonarr_queue(page=1, page_size=10, sort_key="timeleft", sort_dir="asc", 
         return {"error": "Could not fetch Sonarr queue.", "records": [], "totalRecords": 0, "page": page, "pageSize": page_size}
 
 
-def remove_queue_item(item_id: str, blocklist: bool) -> str:
+def remove_queue_item(item_id: str, blocklist: bool) -> tuple[bool, str]:
 
     params = {
         "removeFromClient": "true", "blocklist": str(blocklist).lower(),
@@ -171,19 +171,19 @@ def remove_queue_item(item_id: str, blocklist: bool) -> str:
         action_taken = "blocklisted and removed" if blocklist else "removed (not blocklisted)"
         logger.info(
             f"Sonarr queue item {item_id} {action_taken} successfully.")
-        return f"✅ Sonarr item {item_id} {action_taken} from queue."
+        return True, f"✅ Sonarr item {item_id} {action_taken} from queue."
     except requests.exceptions.HTTPError as e:
         if e.response and e.response.status_code == 404:
             logger.warning(
                 f"Sonarr queue item {item_id} not found (404) for removal.")
-            return f"⚠️ Sonarr item {item_id} not found in queue. It might have already completed or been removed."
+            return False, f"⚠️ Sonarr item {item_id} not found in queue. It might have already completed or been removed."
         logger.error(
             f"HTTPError removing Sonarr queue item {item_id}: {e}", exc_info=True)
-        return f"⚠️ Error removing Sonarr item {item_id} from queue (HTTP {e.response.status_code if e.response else 'Unknown'})."
+        return False, f"⚠️ Error removing Sonarr item {item_id} from queue (HTTP {e.response.status_code if e.response else 'Unknown'})."
     except Exception as e:
         logger.error(
             f"Error removing Sonarr queue item {item_id}: {e}", exc_info=True)
-        return f"⚠️ Error removing Sonarr item {item_id} from queue: {type(e).__name__}. Check logs."
+        return False, f"⚠️ Error removing Sonarr item {item_id} from queue: {type(e).__name__}. Check logs."
 
 
 def get_sonarr_library_stats():

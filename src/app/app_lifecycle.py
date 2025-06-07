@@ -148,7 +148,7 @@ async def _handle_post_ui_config_reload(context: CallbackContext):
                             await show_or_edit_main_menu(str(target_user_id_str), app_instance, force_send_new=True)
 
                             status_for_affected = "Your access permissions or role has been updated by an administrator."
-                            if user_manager.get_role_for_chat_id(target_user_id_str) == app_config_holder.ROLE_UNKNOWN:
+                            if user_manager.get_role_for_chat_id(target_user_id_str, force_reload_state=True) == app_config_holder.ROLE_UNKNOWN:
                                 status_for_affected = "Your access to the bot has been revoked or changed."
 
                             await send_or_edit_universal_status_message(

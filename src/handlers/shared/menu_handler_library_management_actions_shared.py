@@ -39,8 +39,7 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
                         callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value}{item_id}")])
 
         keyboard.append([InlineKeyboardButton("🚫🔍 Blocklist & Search Again",
-
-                                              callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}")])
+                                              callback_data=f"{CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}_{search_id}")])
         keyboard.append([InlineKeyboardButton("🔄 Refresh Queue List",
                         callback_data=CallbackData.CMD_RADARR_QUEUE_REFRESH.value)])
 
@@ -53,8 +52,7 @@ async def display_queue_item_action_menu(update: Update, context: ContextTypes.D
                         callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value}{item_id}")])
 
         keyboard.append([InlineKeyboardButton("🚫🔍 Blocklist & Search Again",
-
-                                              callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}")])
+                                              callback_data=f"{CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value}{item_id}_{search_id}")])
         keyboard.append([InlineKeyboardButton("🔄 Refresh Queue List",
                         callback_data=CallbackData.CMD_SONARR_QUEUE_REFRESH.value)])
 

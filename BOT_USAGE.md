@@ -9,8 +9,8 @@ This guide explains how to use the various features of the Media Catalog Telegra
 
 ## Roles
 
-*   **Primary Administrator:** Full control, including `/settings`, managing dynamic launchers, and assigning any role (`ADMIN` or `STANDARD_USER`) to approved users.
-*   **Administrator (`ADMIN`):** Access to most control features, media addition, and management of user media/access requests. Can approve new users only as `STANDARD_USER`.
+*   **Primary Administrator:** Full control, including `/settings`, managing dynamic launchers, and all user management functions (approving access, assigning any role, adding/removing users).
+*   **Administrator (`ADMIN`):** Access to most control features, media addition, and management of user *media* requests. Cannot manage users or access requests.
 *   **Standard User (`STANDARD_USER`):** Can search/request media, view their requests, and search/browse Plex content including details.
 *   **Unknown User (`UNKNOWN`):** New users; can only "Request Access".
 
@@ -66,13 +66,14 @@ The main menu buttons adapt based on your assigned role and enabled features.
         *   **Approve:** Initiates the standard admin add flow for that media item.
         *   **Reject:** Allows providing an optional reason for rejection.
     *   Access "📜 View History" for previously processed requests.
-*   **"🔑 User Access (X)"**:
+*   **"👑 Manage Users & Requests (X)"** (Primary Administrator only):
     *   `(X)` shows the number of pending user access requests.
-    *   View a list of users requesting access.
-    *   Click "✅ Approve" for a user.
-        *   **Primary Admins** can assign the new user as `STANDARD_USER` or `ADMIN`.
-        *   **Other Admins** can only assign the new user as `STANDARD_USER`.
-    *   Click "❌ Deny" to reject an access request.
+    *   The menu displays pending access requests at the top:
+        *   Click "✅ Approve" for a user to assign them `STANDARD_USER` or `ADMIN` role.
+        *   Click "❌ Deny" to reject an access request.
+    *   Below pending requests, a paginated list of existing users is shown:
+        *   Click "✏️ Edit" next to a user to change their role or remove them.
+    *   An "➕ Add New User" button allows adding users directly by their Telegram Chat ID and assigning a role.
 *   **"🎬 Radarr Controls"** (if Radarr is enabled):
     *   **"📥 View Download Queue"**: See items currently downloading in Radarr. Click an item for actions (Remove, Blocklist Only, Blocklist & Search).
     *   **"🛠️ Library Maintenance"**:
@@ -113,4 +114,4 @@ The main menu buttons adapt based on your assigned role and enabled features.
 *   The "Universal Status Message" at the bottom of your chat provides feedback on actions and current menu context.
 *   Configuration for API keys, URLs, enabled features, and dynamic launchers is done via the `/settings` command (Primary Admin only), which opens a GUI.
 *   Log files are now stored daily in the `data/log/` directory.
-*   Regularly check the `CHANGELOG` for new features and updates.
+*   Regularly check the `CHANGELOG.md` for new features and updates.

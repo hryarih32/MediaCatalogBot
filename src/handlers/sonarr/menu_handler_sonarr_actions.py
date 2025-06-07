@@ -125,40 +125,44 @@ async def handle_sonarr_library_action(update: Update, context: ContextTypes.DEF
             del context.user_data['current_queue_action_item']
         await display_sonarr_queue_menu(update, context, page=current_page_sonarr_queue)
     elif callback_data_str.startswith(CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value):
-        action_item_data = context.user_data.get(
-            'current_queue_action_item', {})
-        queue_item_id = action_item_data.get('item_id', callback_data_str.replace(
-            CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value, ""))
+        queue_item_id = callback_data_str.replace(
+            CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value, "")
 
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(f"⏳ Blocklisting item {queue_item_id} (no search)..."), parse_mode="MarkdownV2")
-        result_message_raw = sonarr_remove_queue_item(
+        blocklist_success, result_message_raw = sonarr_remove_queue_item(
             queue_item_id, blocklist=True)
+        # For "Blocklist Only", no search is triggered regardless of blocklist_success.
 
         if context.user_data.get('current_queue_action_item'):
             del context.user_data['current_queue_action_item']
         await display_sonarr_queue_menu(update, context, page=current_page_sonarr_queue)
     elif callback_data_str.startswith(CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value):
-        action_item_data = context.user_data.get(
-            'current_queue_action_item', {})
-        queue_item_id = action_item_data.get('item_id', callback_data_str.replace(
-            CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value, ""))
-        media_search_id = action_item_data.get('search_id', "0")
+        payload = callback_data_str.replace(
+            CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value, "")
+        parts = payload.split("_", 1)  # Max split 1
+        queue_item_id = parts[0]
+        media_search_id = parts[1] if len(parts) > 1 else "0"
 
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(f"⏳ Blocklisting item {queue_item_id} and searching again..."), parse_mode="MarkdownV2")
-        result_message_raw = sonarr_remove_queue_item(
+        blocklist_success, blocklist_message_raw = sonarr_remove_queue_item(
             queue_item_id, blocklist=True)
 
-        if "✅" in result_message_raw and media_search_id != "0":
+        final_status_parts = [blocklist_message_raw]
+
+        if blocklist_success and media_search_id != "0":
             try:
                 sonarr_episode_id_for_search = int(media_search_id)
-                search_msg_raw = trigger_episode_search(
+                search_success, search_msg_raw = trigger_episode_search(
                     episode_ids=[sonarr_episode_id_for_search])
-                result_message_raw += f"\n{search_msg_raw}"
+                final_status_parts.append(search_msg_raw)
             except ValueError:
-                result_message_raw += "\n⚠️ Could not trigger search: Invalid Episode ID for search."
-        elif media_search_id == "0":
-            result_message_raw += "\n⚠️ Could not trigger search: Episode ID not available."
+                final_status_parts.append(
+                    "⚠️ Could not trigger search: Invalid Episode ID for search.")
+        elif blocklist_success and media_search_id == "0":
+            final_status_parts.append(
+                "⚠️ Could not trigger search: Episode ID not available.")
 
+        result_message_raw = "\n".join(filter(None, final_status_parts))
         if context.user_data.get('current_queue_action_item'):
             del context.user_data['current_queue_action_item']
         await display_sonarr_queue_menu(update, context, page=current_page_sonarr_queue)

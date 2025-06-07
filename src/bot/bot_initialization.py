@@ -192,7 +192,6 @@ async def show_or_edit_main_menu(
                 if load_menu_message_id(str(chat_id)) != menu_msg_id_persisted:
                     save_menu_message_id(menu_msg_id_persisted, str(chat_id))
                 return menu_msg_id_persisted
-
             logger.warning(
                 f"MainMenu: Edit failed for menu_msg {menu_msg_id_persisted} for chat {chat_id} ('{err_lower}'). Text was '{dynamic_menu_text[:100]}...'. Deleting ID and sending new.")
             delete_menu_id_file(str(chat_id))
@@ -200,6 +199,12 @@ async def show_or_edit_main_menu(
                 bot_data_obj.pop(
                     f"menu_message_content_{chat_id}_{menu_msg_id_persisted}", None)
             return await show_or_edit_main_menu(chat_id_str, context_or_app, force_send_new=True)
+        # Add specific handling for RetryAfter, similar to universal status message
+        except RetryAfter as e_retry:
+            logger.warning(
+                f"MainMenu: Rate limited editing menu_msg {menu_msg_id_persisted} for chat {chat_id}. Retry after {e_retry.retry_after}s. Preserving ID.")
+            # Preserving ID, next interaction will attempt edit again.
+            return menu_msg_id_persisted
         except Exception as e:
             logger.error(
                 f"MainMenu: Unexpected error editing menu_msg {menu_msg_id_persisted} for chat {chat_id}: {e}. Text was '{dynamic_menu_text[:100]}...'", exc_info=True)

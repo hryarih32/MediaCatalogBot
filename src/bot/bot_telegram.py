@@ -99,6 +99,17 @@ from src.handlers.admin_access_handler import (
     handle_deny_access_request
 )
 
+from src.handlers.admin_users.menu_handler_admin_users import (
+    display_manage_users_menu,
+    display_edit_user_menu,
+    handle_change_user_role,
+    handle_remove_user,
+    handle_add_user_init,
+    handle_add_user_chat_id_input,
+    handle_add_user_role_selection,
+    cancel_add_user_conversation,
+    ASK_NEW_USER_CHAT_ID, ASK_NEW_USER_ROLE)
+
 logger = logging.getLogger(__name__)
 
 
@@ -251,6 +262,32 @@ def setup_handlers(application: Application):
     application.add_handler(CallbackQueryHandler(handle_approve_access_request_assign_role,
                             pattern=rf"^{CallbackData.ACCESS_REQUEST_ASSIGN_ROLE_PREFIX.value}.+$"))
 
+    # Unified Admin User & Access Request Management Handlers
+    application.add_handler(CallbackQueryHandler(
+        display_manage_users_menu, pattern=f"^{CallbackData.CMD_ADMIN_MANAGE_USERS_MENU.value}$"))
+    application.add_handler(CallbackQueryHandler(
+        display_edit_user_menu, pattern=rf"^{CallbackData.CMD_ADMIN_USER_SELECT_FOR_EDIT_PREFIX.value}.+$"))
+    application.add_handler(CallbackQueryHandler(
+        handle_change_user_role, pattern=rf"^{CallbackData.CMD_ADMIN_USER_CHANGE_ROLE_PREFIX.value}.+$"))
+    application.add_handler(CallbackQueryHandler(
+        handle_remove_user, pattern=rf"^{CallbackData.CMD_ADMIN_USER_REMOVE_PREFIX.value}.+$"))
+
+    add_user_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(
+            handle_add_user_init, pattern=f"^{CallbackData.CMD_ADMIN_USER_ADD_INIT.value}$")],
+        states={
+            ASK_NEW_USER_CHAT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_user_chat_id_input)],
+            ASK_NEW_USER_ROLE: [CallbackQueryHandler(
+                handle_add_user_role_selection, pattern=r"^assign_role_.+$|^cancel_add_user$")]
+        },
+        fallbacks=[CommandHandler('cancel', cancel_add_user_conversation), CallbackQueryHandler(
+            cancel_add_user_conversation, pattern="^cancel_add_user$")],
+    )
+    application.add_handler(add_user_conv_handler)
+    # Handler for user list pagination within the unified menu
+    application.add_handler(CallbackQueryHandler(
+        display_manage_users_menu, pattern=rf"^{CallbackData.CMD_ADMIN_USER_PAGE_PREFIX.value}\d+$"))
+
     application.add_handler(CallbackQueryHandler(
         plex_now_playing_callback, pattern=f"^{CallbackData.CMD_PLEX_VIEW_NOW_PLAYING.value}$"))
     application.add_handler(CallbackQueryHandler(plex_recently_added_select_library_callback,
@@ -385,7 +422,7 @@ def setup_handlers(application: Application):
         CallbackData.CMD_HOME_BACK.value, CallbackData.CMD_SETTINGS.value,
         CallbackData.CMD_ADD_MOVIE_INIT.value, CallbackData.CMD_ADD_SHOW_INIT.value,
         CallbackData.CMD_ADD_DOWNLOAD_INIT.value,
-        CallbackData.CMD_LAUNCHERS_MENU.value,
+        CallbackData.CMD_LAUNCHERS_MENU.value,  # Primary Admin
         CallbackData.CMD_PC_CONTROL_ROOT.value,
         CallbackData.CMD_RADARR_CONTROLS.value, CallbackData.CMD_SONARR_CONTROLS.value,
         CallbackData.CMD_PLEX_CONTROLS.value,
@@ -396,8 +433,9 @@ def setup_handlers(application: Application):
 
         CallbackData.SONARR_CANCEL.value,
         CallbackData.CMD_MY_REQUESTS_MENU.value, CallbackData.CMD_ADMIN_REQUESTS_MENU.value,
-        CallbackData.CMD_PLEX_INITIATE_SEARCH.value,
-
+        CallbackData.CMD_PLEX_INITIATE_SEARCH.value,  # Standard User + Admin
+        # Primary Admin (Unified Menu)
+        CallbackData.CMD_ADMIN_MANAGE_USERS_MENU.value,
     ]
     regex_root_menu_exact_triggers = "^(" + "|".join(f"({re.escape(item)})" for item in list(
         dict.fromkeys(root_menu_exact_match_patterns))) + ")$"
@@ -411,9 +449,12 @@ def setup_handlers(application: Application):
 
 
 RADARR_ACTIONS_REGEX = "^(" + "|".join(re.escape(e.value) for e in [CallbackData.CMD_RADARR_SCAN_FILES, CallbackData.CMD_RADARR_UPDATE_METADATA, CallbackData.CMD_RADARR_RENAME_FILES, CallbackData.CMD_RADARR_QUEUE_BACK_TO_LIST,]) + \
-    f"|{re.escape(CallbackData.CMD_RADARR_QUEUE_ITEM_ACTIONS_MENU_PREFIX.value)}[0-9a-zA-Z_.-]+" + f"|{re.escape(CallbackData.CMD_RADARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX.value)}[0-9a-zA-Z_.-]+" + \
+    f"|{re.escape(CallbackData.CMD_RADARR_QUEUE_ITEM_ACTIONS_MENU_PREFIX.value)}[0-9a-zA-Z_.-]+" + \
+    f"|{re.escape(CallbackData.CMD_RADARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX.value)}[0-9a-zA-Z_.-]+" + \
+    f"|{re.escape(CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value)}[0-9a-zA-Z_.-]+" + \
     f"|{re.escape(CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value)}[0-9a-zA-Z_.-]+" + ")$"
 SONARR_ACTIONS_REGEX = "^(" + "|".join(re.escape(e.value) for e in [CallbackData.CMD_SONARR_SCAN_FILES, CallbackData.CMD_SONARR_UPDATE_METADATA, CallbackData.CMD_SONARR_RENAME_FILES, CallbackData.CMD_SONARR_SEARCH_WANTED_ALL_NOW, CallbackData.CMD_SONARR_QUEUE_BACK_TO_LIST,]) + \
     f"|{re.escape(CallbackData.CMD_SONARR_WANTED_SEARCH_EPISODE_PREFIX.value)}[0-9]+" + f"|{re.escape(CallbackData.CMD_SONARR_QUEUE_ITEM_ACTIONS_MENU_PREFIX.value)}[0-9a-zA-Z_.-]+" + \
     f"|{re.escape(CallbackData.CMD_SONARR_QUEUE_ITEM_REMOVE_NO_BLOCKLIST_PREFIX.value)}[0-9a-zA-Z_.-]+" + \
+    f"|{re.escape(CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value)}[0-9a-zA-Z_.-]+" + \
     f"|{re.escape(CallbackData.CMD_SONARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value)}[0-9a-zA-Z_.-]+" + ")$"

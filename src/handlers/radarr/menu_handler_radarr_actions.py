@@ -108,25 +108,24 @@ async def handle_radarr_library_action(update: Update, context: ContextTypes.DEF
 
         await display_radarr_queue_menu(update, context, page=current_page_radarr)
     elif callback_data_str.startswith(CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value):
-        action_item_data = context.user_data.get(
-            'current_queue_action_item', {})
-        queue_item_id = action_item_data.get('item_id', callback_data_str.replace(
-            CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value, ""))
+        queue_item_id = callback_data_str.replace(
+            CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_ONLY_PREFIX.value, "")
 
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(f"⏳ Blocklisting item {queue_item_id} (no search)..."), parse_mode="MarkdownV2")
-        result_message_raw = radarr_remove_queue_item(
+        blocklist_success, result_message_raw = radarr_remove_queue_item(
             queue_item_id, blocklist=True)
+        # For "Blocklist Only", no search is triggered regardless of blocklist_success.
 
         if context.user_data.get('current_queue_action_item'):
             del context.user_data['current_queue_action_item']
         await display_radarr_queue_menu(update, context, page=current_page_radarr)
     elif callback_data_str.startswith(CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value):
-        action_item_data = context.user_data.get(
-            'current_queue_action_item', {})
-        queue_item_id = action_item_data.get('item_id', callback_data_str.replace(
-            CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value, ""))
-        media_search_id = action_item_data.get(
-            'search_id', "0")
+        payload = callback_data_str.replace(
+            CallbackData.CMD_RADARR_QUEUE_ITEM_BLOCKLIST_SEARCH_PREFIX.value, "")
+        # Max split 1 to ensure the second part (media_search_id) is captured whole
+        parts = payload.split("_", 1)
+        queue_item_id = parts[0]
+        media_search_id = parts[1] if len(parts) > 1 else "0"
 
         await send_or_edit_universal_status_message(context.bot, chat_id, escape_md_v2(f"⏳ Blocklisting item {queue_item_id} and searching again..."), parse_mode="MarkdownV2")
         result_message_raw = radarr_remove_queue_item(

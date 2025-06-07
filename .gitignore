@@ -27,6 +27,8 @@ build_version_details.txt
 
 *.spec
 
+#log.txt
+
 bin/
 
 .env

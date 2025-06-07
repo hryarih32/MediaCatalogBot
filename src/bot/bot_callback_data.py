@@ -109,4 +109,12 @@ class CallbackData(str, Enum):
     ACCESS_REQUEST_DENY_PREFIX = "acc_req_deny_"
     ACCESS_REQUEST_ASSIGN_ROLE_PREFIX = "acc_req_assign_role_"
 
+    CMD_ADMIN_MANAGE_USERS_MENU = "cmd_admin_manage_users"
+    CMD_ADMIN_USER_PAGE_PREFIX = "admin_user_page_"
+    CMD_ADMIN_USER_SELECT_FOR_EDIT_PREFIX = "admin_user_edit_"
+    CMD_ADMIN_USER_CHANGE_ROLE_PREFIX = "admin_user_role_"
+    CMD_ADMIN_USER_REMOVE_PREFIX = "admin_user_remove_"
+    CMD_ADMIN_USER_ADD_INIT = "admin_user_add_init"
+    # Note: Adding user via text input for chat_id, then role selection via callback.
+
     CB_NO_OP = "cb_no_op"

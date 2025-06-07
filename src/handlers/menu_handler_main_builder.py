@@ -119,8 +119,10 @@ def build_main_menu_content(version: str, user_role: str, chat_id_str: str):
     elif is_general_admin:
         admin_add_media_buttons = []
         if app_config_holder.is_radarr_enabled():
-            admin_add_media_buttons.append(InlineKeyboardButton("➕ Add Movie",
-                                           callback_data=CallbackData.CMD_ADD_MOVIE_INIT.value))
+            admin_add_media_buttons.append(
+                InlineKeyboardButton("➕ Add Movie",
+                                     callback_data=CallbackData.CMD_ADD_MOVIE_INIT.value)
+            )
         if app_config_holder.is_sonarr_enabled():
             admin_add_media_buttons.append(InlineKeyboardButton("➕ Add TV Show",
                                                                 callback_data=CallbackData.CMD_ADD_SHOW_INIT.value))
@@ -134,12 +136,7 @@ def build_main_menu_content(version: str, user_role: str, chat_id_str: str):
         pending_media_req_count = get_pending_request_count()
         admin_media_req_button_text = f"📮 Media Requests ({pending_media_req_count}❗️)" if pending_media_req_count > 0 else "📮 Media Requests"
         keyboard.append([InlineKeyboardButton(admin_media_req_button_text,
-                                              callback_data=CallbackData.CMD_ADMIN_REQUESTS_MENU.value)])
-
-        pending_access_req_count = get_pending_access_request_count()
-        admin_access_req_button_text = f"🔑 User Access ({pending_access_req_count}❗️)" if pending_access_req_count > 0 else "🔑 User Access"
-        keyboard.append([InlineKeyboardButton(admin_access_req_button_text,
-                                              callback_data=CallbackData.CMD_ADMIN_VIEW_ACCESS_REQUESTS.value)])
+                                              callback_data=CallbackData.CMD_ADMIN_REQUESTS_MENU.value)])  # For media requests
 
         radarr_sonarr_controls_row = []
         if app_config_holder.is_radarr_enabled():
@@ -170,6 +167,10 @@ def build_main_menu_content(version: str, user_role: str, chat_id_str: str):
         if is_primary_admin:
             keyboard.append([InlineKeyboardButton("🚀 Launchers Menu",
                                                   callback_data=CallbackData.CMD_LAUNCHERS_MENU.value)])
+            pending_access_req_count = get_pending_access_request_count()
+            manage_users_button_text = f"👑 Manage Users & Requests ({pending_access_req_count}❗️)" if pending_access_req_count > 0 else "👑 Manage Users & Requests"
+            keyboard.append([InlineKeyboardButton(manage_users_button_text,
+                                                  callback_data=CallbackData.CMD_ADMIN_MANAGE_USERS_MENU.value)])
 
     elif is_unknown_user:
         keyboard.append([InlineKeyboardButton("🚪 Request Access",

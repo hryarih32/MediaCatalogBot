@@ -1,22 +1,28 @@
 # Media Catalog Telegram Bot
 
-**Version: 3.1.2**
+**Version: 3.2.0**
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/hryarih32?style=social&label=Sponsor%20Project)](https://github.com/hryarih32/MediaCatalogBot#️-support-the-project)
 
 **License:** GNU General Public License v3.0 (see `LICENSE` file)
 
-The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It integrates with Plex, Radarr, Sonarr, and AB Download Manager, and includes features for PC control, dynamic script/application launching, and robust user management. Version 3.1.0 brings further refinements to user access controls, request workflows, and overall stability.
+The Media Catalog Telegram Bot is a versatile tool designed to help you manage and interact with your digital media collection and related services directly from Telegram. It integrates with Plex, Radarr, Sonarr, and AB Download Manager, and includes features for PC control, dynamic script/application launching, and robust user management. Version 3.2.0 brings a unified user management and access request system for primary administrators, along with improved message handling and bug fixes.
 
 ## Core Functionality
 
 *   **Multi-User System with Roles:**
     *   **Primary Administrator:** Defined by `CHAT_ID` in `config.py`. Full control, including bot settings, dynamic launcher management, and the ability to assign other users as `ADMIN`.
-    *   **Administrator (`ADMIN`):** Can be assigned by Primary Admin. Access to most control features, direct media addition, and management of user media/access requests (can approve users as `STANDARD_USER`).
+    *   **Administrator (`ADMIN`):** Can be assigned by Primary Admin. Access to most control features, direct media addition, and management of user media requests (can approve users as `STANDARD_USER`).
     *   **Standard User (`STANDARD_USER`):** Can search/request media, view their own request statuses, and search/browse Plex content including item details.
     *   **Unknown User (`UNKNOWN`):** New users interacting with the bot; presented with an option to request access.
-*   **User Access Request System:**
+*   **User Access Request & Management System (Primary Admin Focused):**
     *   Unknown users can request access to the bot.
-    *   Administrators can review pending access requests via a dedicated menu (with a count indicator) and approve or deny them. Primary Admins can assign `ADMIN` or `STANDARD_USER` roles; other Admins can only assign `STANDARD_USER`.
+    *   The Primary Administrator has a unified "Manage Users & Requests" menu.
+        *   View pending access requests and approve (assigning `ADMIN` or `STANDARD_USER` roles) or deny them.
+        *   View a list of all existing users (excluding self).
+        *   Change the role of existing users (Admin, Standard User).
+        *   Remove users (revokes access).
+        *   Add new users by providing their Telegram Chat ID and assigning a role.
+    *   Other Administrators can view and process *media* requests but do not have access to the unified user management/access request menu.
 *   **Media Request Workflow:**
     *   Standard users can search for movies (Radarr) and TV shows (Sonarr) and submit them as requests for admin approval.
     *   Administrators can directly add media or approve/reject user requests. Media request status is updated accurately upon completion or cancellation of the add flow.
@@ -50,7 +56,7 @@ The Media Catalog Telegram Bot is a versatile tool designed to help you manage a
 
 1.  **Get the Code:**
     *   **Clone (Recommended):** `git clone https://github.com/hryarih32/MediaCatalogBot.git`
-    *   **Download Release:** Visit the [Releases Page](https://github.com/hryarih32/MediaCatalogBot/releases).
+    *   **Download Release:** Visit the Releases Page.
 2.  **Setup & Configuration:**
     *   Detailed instructions for Python setup, dependency installation, and bot configuration are in:
         **`SETUP_INSTRUCTIONS.md`**
@@ -81,7 +87,7 @@ If you find this Media Catalog Telegram Bot useful and appreciate the work, plea
 *(Please double-check addresses and ensure you are sending on the correct network.)*
 
 ### Other Ways to Support
-*   Star the project on [GitHub](https://github.com/hryarih32/MediaCatalogBot)! ⭐
+*   Star the project on GitHub! ⭐
 *   Share the bot with others who might find it useful.
 
 Thank you!
@@ -92,7 +98,7 @@ GNU General Public License v3.0. See the `LICENSE` file for full details.
 
 ## Contributing
 
-Contributions, bug reports, and feature requests are welcome! Please open an issue on the [project's GitHub repository](https://github.com/hryarih32/MediaCatalogBot/issues).
+Contributions, bug reports, and feature requests are welcome! Please open an issue on the project's GitHub repository.
 
 ## Disclaimer
 

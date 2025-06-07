@@ -103,7 +103,7 @@ def get_radarr_queue(page=1, page_size=10, sort_key="timeleft", sort_dir="asc"):
         return {"error": "Could not fetch Radarr queue.", "records": [], "totalRecords": 0, "page": page, "pageSize": page_size}
 
 
-def remove_queue_item(item_id: str, blocklist: bool) -> str:
+def remove_queue_item(item_id: str, blocklist: bool) -> tuple[bool, str]:
 
     params = {
         "removeFromClient": "true", "blocklist": str(blocklist).lower(),
@@ -114,37 +114,37 @@ def remove_queue_item(item_id: str, blocklist: bool) -> str:
         action_taken = "blocklisted and removed" if blocklist else "removed (not blocklisted)"
         logger.info(
             f"Radarr queue item {item_id} {action_taken} successfully.")
-        return f"✅ Radarr item {item_id} {action_taken} from queue."
+        return True, f"✅ Radarr item {item_id} {action_taken} from queue."
     except requests.exceptions.HTTPError as e:
         if e.response and e.response.status_code == 404:
             logger.warning(
                 f"Radarr queue item {item_id} not found (404) for removal.")
-            return f"⚠️ Radarr item {item_id} not found in queue. It might have already completed or been removed."
+            return False, f"⚠️ Radarr item {item_id} not found in queue. It might have already completed or been removed."
         logger.error(
             f"HTTPError removing Radarr queue item {item_id}: {e}", exc_info=True)
-        return f"⚠️ Error removing Radarr item {item_id} from queue (HTTP {e.response.status_code if e.response else 'Unknown'})."
+        return False, f"⚠️ Error removing Radarr item {item_id} from queue (HTTP {e.response.status_code if e.response else 'Unknown'})."
     except Exception as e:
         logger.error(
             f"Error removing Radarr queue item {item_id}: {e}", exc_info=True)
-        return f"⚠️ Error removing Radarr item {item_id} from queue: {type(e).__name__}. Check logs."
+        return False, f"⚠️ Error removing Radarr item {item_id} from queue: {type(e).__name__}. Check logs."
 
 
-def trigger_movie_search_for_id(movie_id: int) -> str:
+def trigger_movie_search_for_id(movie_id: int) -> tuple[bool, str]:
 
     if not movie_id or movie_id == 0:
         logger.warning(
             f"Invalid movie_id ({movie_id}) provided for Radarr search.")
-        return "⚠️ Cannot trigger search: Invalid Movie ID."
+        return False, "⚠️ Cannot trigger search: Invalid Movie ID."
     command_data = {"name": "MovieSearch", "movieIds": [movie_id]}
     try:
         _radarr_request('post', '/command', data=command_data)
         logger.info(
             f"Radarr 'MovieSearch' command initiated for movie ID {movie_id}.")
-        return f"✅ Radarr search initiated for movie ID {movie_id}."
+        return True, f"✅ Radarr search initiated for movie ID {movie_id}."
     except Exception as e:
         logger.error(
             f"Error initiating Radarr MovieSearch for movie ID {movie_id}: {e}", exc_info=True)
-        return f"⚠️ Error initiating Radarr search for movie ID {movie_id}: {type(e).__name__}. Check logs."
+        return False, f"⚠️ Error initiating Radarr search for movie ID {movie_id}: {type(e).__name__}. Check logs."
 
 
 def get_radarr_library_stats():

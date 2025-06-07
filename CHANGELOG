@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.0] - 2025-06-07
+
+### Changed
+-   **Admin User Management:** Unified "Manage Users" and "User Access Requests" into a single "Manage Users & Requests" menu for the Primary Administrator. This menu now displays pending access requests at the top, followed by the paginated list of existing users.
+-   **User Notifications:** When an admin changes a user's role, removes a user, or adds a new user, the notification to the affected user is now consistently delivered via an update to their universal status message, and their main menu is force-refreshed to ensure correct message ordering and UI consistency.
+-   **Message Editing:** Improved robustness of editing universal status messages and main menus to better handle temporary Telegram API rate limits (`RetryAfter` exceptions), reducing unnecessary message resends.
+
+### Fixed
+-   Resolved MarkdownV2 parsing errors in admin-facing universal status messages after user management actions (e.g., role change, user removal/addition), ensuring these messages can be edited correctly instead of being resent.
+-   Corrected an issue where the "Blocklist Only" button for Radarr/Sonarr queue items was not functioning due to callback routing and ID parsing errors.
+-   Addressed an issue where the "Blocklist & Search" button for Radarr/Sonarr queue items might not initiate a search after blocklisting; the search is now more reliably triggered based on the success of the blocklist operation.
+
 ## [3.1.2] - 2025-05-29
 
 ### Changed
