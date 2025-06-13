@@ -12,6 +12,7 @@ from src.bot.bot_initialization import send_or_edit_universal_status_message, sh
 import src.app.app_config_holder as app_config_holder
 
 import src.app.user_manager as user_manager
+from src.app.app_api_status_manager import update_all_api_statuses_once  # New Import
 import sys
 from .app_config_ui import run_config_ui
 from src.config.config_definitions import ALL_USER_CONFIG_KEYS, CONFIG_FIELD_DEFINITIONS, LOG_LEVEL_OPTIONS
@@ -102,6 +103,9 @@ async def _handle_post_ui_config_reload(context: CallbackContext):
                 "User state re-initialized from user_manager after config reload.")
 
             new_primary_admin_chat_id_str = app_config_holder.get_chat_id_str()
+
+            # Refresh API statuses in bot_data after config reload
+            await update_all_api_statuses_once(application.bot_data)
 
             status_message_parts_raw.append(
                 "⚙️ Settings reloaded successfully!")

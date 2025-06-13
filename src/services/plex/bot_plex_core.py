@@ -134,3 +134,22 @@ def get_plex_server_info_formatted():
     except Exception as e:
         logger.error(f"Error fetching Plex server info: {e}", exc_info=True)
         return {"error": f"Error fetching Plex server info: {type(e).__name__}."}
+
+
+def check_plex_connection() -> bool:
+    """Performs a quick health check for Plex."""
+    if not PLEX_URL_GLOBAL or not PLEX_TOKEN_GLOBAL:
+        return False
+    try:
+        # Use a very short timeout for a quick check
+        plex = PlexServer(PLEX_URL_GLOBAL, PLEX_TOKEN_GLOBAL, timeout=3)
+        # Accessing a simple attribute like version should be lightweight
+        # Use _plex_request for backoff
+        _plex_request(getattr, plex, 'version')
+        logger.debug("Plex health check: PASSED")
+        return True
+    except Exception as e:
+        # Log at debug, as this is a health check and might fail often if service is temporarily down
+        logger.debug(
+            f"Plex health check: FAILED - {type(e).__name__}: {e}", exc_info=False)
+        return False

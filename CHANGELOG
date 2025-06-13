@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.3.0] - 2025-60-13 
+
+### Added
+-   **Ticketing System:**
+    -   Users can create, view, reply to, and close their own support tickets via a "My Tickets" / "Tickets" menu.
+    -   Administrators can view all open tickets, access ticket details, reply to users, and close tickets.
+    -   Notifications for new tickets and replies are delivered via the Universal Status Message, and relevant menus are refreshed.
+-   **API Status Indicators:** The admin main menu now displays status indicators (✅ Online, 🔌 Offline, ⚠️ Config Error, 🔘 Disabled, ❓ Unknown) for Plex, Sonarr, Radarr, and ABDM, based on periodic health checks.
+-   **Automatic Username Refresh:** The bot periodically attempts to update stored Telegram usernames/first names for users.
+
+### Changed
+-   **Main Menu Redesign & Button Renaming:**
+    -   "Plex Controls" button renamed to "🌐 Plex".
+    -   "Sonarr Controls" button renamed to "🎞️ Sonarr".
+    -   "Radarr Controls" button renamed to "🎬 Radarr".
+    -   "Media Requests" button renamed to "📮 Requests".
+    -   For Primary Administrators, "🎧 Media & Sound" and "🔌 System Power" controls moved from the "PC Control" submenu to be directly accessible on the main menu.
+-   **Ticket Notifications:** Notifications for ticket closures (by user or admin) now consistently use the Universal Status Message and trigger a main menu refresh for the other party involved in the ticket.
+
+### Fixed
+-   **Admin Ticket Closure:** Resolved an issue preventing administrators from closing tickets (button timeout/no action).
+-   **Role Change UI Flash:** Eliminated a brief "User not found" message in the Universal Status Message that could appear immediately after an admin changed a user's role.
+-   **Ticketing Flow Stability:** Addressed various MarkdownV2 parsing errors and `TypeError` exceptions (related to `DummyCallbackQuery` and `force_reload_state`) within the ticketing system to ensure smoother operation.
+-   Corrected minor issues in the user role change logic to ensure UI consistency post-change.
+
 ## [3.2.0] - 2025-06-07
 
 ### Changed

@@ -27,11 +27,14 @@ from src.handlers.radarr.menu_handler_radarr_controls import display_radarr_cont
 from src.handlers.sonarr.menu_handler_sonarr_controls import display_sonarr_controls_menu
 from src.handlers.plex.menu_handler_plex_controls import display_plex_controls_menu
 from src.handlers.plex.menu_handler_plex_search_init_results import plex_search_initiate_callback
-
 from src.handlers.pc_control.menu_handler_pc_root import display_pc_control_categories_menu
+from src.handlers.pc_control.menu_handler_pc_media import display_media_sound_controls_menu
+from src.handlers.pc_control.menu_handler_pc_power import display_system_power_controls_menu
 
 from src.handlers.user_requests.menu_handler_my_requests import display_my_requests_menu
 from src.handlers.admin_requests.menu_handler_admin_requests import display_admin_pending_requests_menu
+# New import for ticket list
+from src.handlers.tickets_handler import display_tickets_menu
 
 from src.bot.bot_text_utils import escape_md_v2, escape_md_v1
 
@@ -50,8 +53,8 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     data = query.data
     chat_id = update.effective_chat.id
-
-    user_manager.update_username_if_placeholder(
+    # Ensure effective_user is available from the callback query
+    user_manager.update_username_if_changed_or_placeholder(
         str(chat_id), update.effective_user)
 
     user_role = app_config_holder.get_user_role(str(chat_id))
@@ -68,32 +71,31 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data.pop('pending_plex_search', None)
     context.user_data.pop('pending_download_url', None)
 
-    context.user_data.pop('launcher_selected_subgroup', None)
     plex_keys_to_clear = [
         'plex_search_current_show_rating_key', 'plex_search_current_show_title',
         'plex_search_current_season_number', 'plex_search_current_season_title',
         'plex_search_current_episode_page', 'plex_current_item_details_context',
         'plex_refresh_target_rating_key', 'plex_refresh_target_type',
         'plex_recently_added_current_library_key', 'plex_recently_added_all_items',
-        'plex_return_to_menu_id'
+        'plex_return_to_menu_id', 'launcher_selected_subgroup'
     ]
     for key in plex_keys_to_clear:
         context.user_data.pop(key, None)
 
+    # Actions that ONLY the primary admin can perform
     primary_admin_only_actions = [
         CallbackData.CMD_ADD_DOWNLOAD_INIT.value,
         CallbackData.CMD_SETTINGS.value,
-
         CallbackData.CMD_LAUNCHERS_MENU.value,
+        CallbackData.CMD_ADMIN_MANAGE_USERS_MENU.value,
+        CallbackData.CMD_PC_SHOW_MEDIA_SOUND_MENU.value,
+        CallbackData.CMD_PC_SHOW_SYSTEM_POWER_MENU.value,
     ]
-
+    # Actions for any admin (including primary), but not standard users.
+    # These should NOT overlap with primary_admin_only_actions.
     admin_only_actions = [
-        CallbackData.CMD_RADARR_CONTROLS.value,
-        CallbackData.CMD_SONARR_CONTROLS.value,
-        CallbackData.CMD_PLEX_CONTROLS.value,
-        CallbackData.CMD_PC_CONTROL_ROOT.value,
-        CallbackData.CMD_ADMIN_REQUESTS_MENU.value,
-
+        CallbackData.CMD_RADARR_CONTROLS.value, CallbackData.CMD_SONARR_CONTROLS.value,
+        CallbackData.CMD_PLEX_CONTROLS.value, CallbackData.CMD_ADMIN_REQUESTS_MENU.value,
     ]
 
     standard_user_plus_actions = [
@@ -129,11 +131,17 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await display_sonarr_controls_menu(update, context)
     elif data == CallbackData.CMD_PLEX_CONTROLS.value:
         await display_plex_controls_menu(update, context)
-    elif data == CallbackData.CMD_PC_CONTROL_ROOT.value:
-        if app_config_holder.is_pc_control_enabled():
-            await display_pc_control_categories_menu(update, context)
+    elif data == CallbackData.CMD_PC_SHOW_MEDIA_SOUND_MENU.value:  # New
+        if app_config_holder.is_pc_control_enabled():  # Handler also checks primary admin
+            await display_media_sound_controls_menu(update, context)
         else:
-            await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ PC Controls are currently disabled.", parse_mode=None)
+            await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ PC Media Controls are currently disabled.", parse_mode=None)
+            await show_or_edit_main_menu(str(chat_id), context)
+    elif data == CallbackData.CMD_PC_SHOW_SYSTEM_POWER_MENU.value:  # New
+        if app_config_holder.is_pc_control_enabled():
+            await display_system_power_controls_menu(update, context)
+        else:
+            await send_or_edit_universal_status_message(context.bot, chat_id, "ℹ️ PC System Power Controls are currently disabled.", parse_mode=None)
             await show_or_edit_main_menu(str(chat_id), context)
 
     elif data == CallbackData.CMD_ADD_MOVIE_INIT.value:
@@ -193,6 +201,10 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif data == CallbackData.CMD_ADMIN_REQUESTS_MENU.value:
         await display_admin_pending_requests_menu(update, context, page=1)
 
+    elif data == CallbackData.CMD_TICKETS_MENU.value:  # New Handler for Tickets Button
+        # Call the new ticket menu display
+        await display_tickets_menu(update, context)
+
     elif data == CallbackData.CMD_HOME_BACK.value:
         logger.info(f"Back to home action from chat ID {chat_id}")
         await show_or_edit_main_menu(str(chat_id), context, force_send_new=False)
@@ -229,7 +241,7 @@ async def handle_pending_search(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     chat_id = update.effective_chat.id
-    user_manager.update_username_if_placeholder(
+    user_manager.update_username_if_changed_or_placeholder(
         str(chat_id), update.effective_user)
     user_role = app_config_holder.get_user_role(
         str(chat_id))

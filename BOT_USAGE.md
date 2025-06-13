@@ -19,6 +19,7 @@ This guide explains how to use the various features of the Media Catalog Telegra
 *   `/start` or `/home`: Displays the main menu (role-dependent). For new users, this includes an option to request access. All authenticated users' menus are refreshed on bot startup.
 *   `/settings`: (Primary Administrator only) Opens the GUI for bot configuration, user management, and dynamic launcher setup.
 *   `/status`: (Administrators and Standard Users) Refreshes the universal status message at the bottom of your chat with the bot.
+*   `/tickets`: (Authenticated Users) Opens the ticketing menu to view or create support tickets.
 
 ## Main Menu Options
 
@@ -42,6 +43,11 @@ The main menu buttons adapt based on your assigned role and enabled features.
     6.  If it's a show, you can navigate to its seasons and then to individual episode details.
 *   **"📋 My Requests"**:
     *   View a paginated list of your submitted media requests and their current status (Pending, Approved, Rejected, Add Failed).
+*   **"🎫 My Tickets"**:
+    *   View a list of your open support tickets.
+    *   Select a ticket to view its details and reply.
+    *   Option to close your own tickets.
+    *   "✉️ New Ticket to Admin" button to create a new support ticket.
 
 ### For Administrators (ADMIN & Primary Administrator)
 
@@ -59,7 +65,7 @@ The main menu buttons adapt based on your assigned role and enabled features.
     1.  Click the button.
     2.  The bot prompts for a URL.
     3.  Paste the direct download URL and send. The download will be added to AB Download Manager.
-*   **"📮 Media Requests (X)"**:
+*   **"📮 Requests (X)"**:
     *   `(X)` shows the number of pending user media requests.
     *   View a list of pending requests.
     *   Click a request to see details and options to "✅ Approve" or "❌ Reject".
@@ -74,39 +80,40 @@ The main menu buttons adapt based on your assigned role and enabled features.
     *   Below pending requests, a paginated list of existing users is shown:
         *   Click "✏️ Edit" next to a user to change their role or remove them.
     *   An "➕ Add New User" button allows adding users directly by their Telegram Chat ID and assigning a role.
-*   **"🎬 Radarr Controls"** (if Radarr is enabled):
+*   **"🎬 Radarr"** (if Radarr is enabled):
     *   **"📥 View Download Queue"**: See items currently downloading in Radarr. Click an item for actions (Remove, Blocklist Only, Blocklist & Search).
     *   **"🛠️ Library Maintenance"**:
         *   "🔄 Scan Files (Disk Sync)": Refresh Radarr's view of movie files on disk.
         *   "♻️ Update All Metadata": Refresh metadata for all movies.
         *   "✍️ Rename All Movie Files": Trigger Radarr's file renaming task.
-*   **"🎞️ Sonarr Controls"** (if Sonarr is enabled):
+*   **"🎞️ Sonarr"** (if Sonarr is enabled):
     *   **"📥 View Download Queue"**: See items currently downloading in Sonarr. Click an item for actions.
     *   **"🎯 View Wanted Episodes"**: See a list of episodes Sonarr is actively searching for. Click an episode to trigger an individual search.
     *   **"🛠️ Library Maintenance"**:
         *   "🔄 Scan Files (Disk Sync)": Refresh Sonarr's view of series files.
         *   "♻️ Update All Metadata": Refresh metadata for all series.
         *   "✍️ Rename All Episode Files": Trigger Sonarr's file renaming task.
-*   **"🌐 Plex Controls"** (if Plex is enabled):
+*   **"🌐 Plex"** (if Plex is enabled):
     *   **"📺 View Now Playing"**: See current Plex streams and stop them.
     *   **"🆕 View Recently Added"**: Browse recently added items per library.
     *   **"🔍 Search Plex Content"**: (This is within Plex Controls for Admins) Search and navigate Plex content.
     *   **"🛠️ Library & Server Tools"**:
         *   "🔄 Scan Libraries": Initiate a scan for new/updated media in Plex libraries.
         *   "♻️ Refresh Library Metadata": Refresh all metadata for selected Plex libraries.
-        *   "🔧 Server Maintenance & Info":
-            *   "🧹 Clean Bundles"
-            *   "🗑️ Empty Trash..." (for specific or all libraries)
-            *   "⚙️ Optimize Database"
-            *   "ℹ️ Server Info": View Plex server details and library/service statistics.
-*   **"🖥️ PC Control"** (if PC Control is enabled):
-    *   **"🎧 Media & Sound"**: Control media playback (play/pause, next, prev, stop, seek) and system volume.
-    *   **"🔌 System Power"**: Initiate PC shutdown or restart (requires two-click confirmation).
+        *   "🔧 Server Maintenance & Info": Access sub-menu for cleaning bundles, emptying trash, optimizing the database, and viewing server/library statistics.
+*   **"🎧 Media & Sound"** (Primary Administrator only, if PC Control is enabled):
+    *   Control media playback (play/pause, next, prev, stop, seek) and system volume.
+*   **"🔌 System Power"** (Primary Administrator only, if PC Control is enabled):
+    *   Initiate PC shutdown or restart (requires two-click confirmation).
 *   **"🚀 Launchers"** (Primary Administrator only):
     *   Displays a menu of dynamically configured launchers and scripts.
     *   Launchers can be organized into subgroups.
     *   Click a launcher to execute the application or script on the bot's host machine.
     *   Manage launchers via the `/settings` GUI.
+*   **"🎫 Tickets (X)"**:
+    *   `(X)` shows the number of tickets requiring admin attention (new or user-replied).
+    *   View a list of all open tickets.
+    *   Select a ticket to view its full thread, reply to the user, or close the ticket.
 
 ## Notes
 

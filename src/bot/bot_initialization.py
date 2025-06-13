@@ -120,7 +120,7 @@ async def show_or_edit_main_menu(
     user_role = app_config_holder.get_user_role(str(chat_id))
     version = app_config_holder.get_project_version()
     dynamic_menu_text, reply_markup = build_main_menu_content(
-        version, user_role, str(chat_id))
+        version, user_role, str(chat_id), bot_data_obj)
 
     menu_msg_id_persisted = load_menu_message_id(str(chat_id))
 

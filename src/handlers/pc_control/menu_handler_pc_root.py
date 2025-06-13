@@ -19,13 +19,14 @@ async def display_pc_control_categories_menu(update: Update, context: ContextTyp
     query = update.callback_query
     chat_id = update.effective_chat.id
     user_role = app_config_holder.get_user_role(str(chat_id))
+    is_primary_admin_check = app_config_holder.is_primary_admin(str(chat_id))
 
     if query:
         await query.answer()
 
-    if user_role != app_config_holder.ROLE_ADMIN:
+    if not is_primary_admin_check:
         logger.warning(
-            f"Unauthorized attempt to access PC control categories from chat_id {chat_id} (Role: {user_role})")
+            f"Unauthorized attempt to access PC control categories from chat_id {chat_id} (Role: {user_role}, IsPrimary: {is_primary_admin_check})")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. PC Controls are for administrators.", parse_mode=None)
         return
 

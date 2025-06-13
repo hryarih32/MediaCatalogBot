@@ -66,14 +66,14 @@ def set_system_volume(level_percent: int) -> bool:
 async def display_media_sound_controls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     chat_id = update.effective_chat.id
-    user_role = app_config_holder.get_user_role(str(chat_id))
+    is_primary_admin_check = app_config_holder.is_primary_admin(str(chat_id))
 
     if query:
         await query.answer()
 
-    if user_role != app_config_holder.ROLE_ADMIN:
+    if not is_primary_admin_check:
         logger.warning(
-            f"PC media controls attempt by non-admin {chat_id} (Role: {user_role}).")
+            f"PC media controls attempt by non-primary admin {chat_id}.")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. PC Media Controls are for administrators.", parse_mode=None)
         return
 
@@ -112,10 +112,10 @@ async def display_media_sound_controls_menu(update: Update, context: ContextType
                     "Vol: 75%", callback_data=f"{PC_CONTROL_CALLBACK_PREFIX}vol75"),
                 InlineKeyboardButton(
                     "Vol: 100%", callback_data=f"{PC_CONTROL_CALLBACK_PREFIX}vol100")
-            ],
-            [InlineKeyboardButton("🔇 Mute Toggle (pycaw/pyautogui)",
-                                  callback_data=f"{PC_CONTROL_CALLBACK_PREFIX}mute")]
+            ]
         ])
+        keyboard.append([InlineKeyboardButton("🔇 Mute Toggle",
+                                              callback_data=f"{PC_CONTROL_CALLBACK_PREFIX}mute")])
     else:
         keyboard.append([InlineKeyboardButton(
             "🔇 Mute Toggle (pyautogui)", callback_data=f"{PC_CONTROL_CALLBACK_PREFIX}mute")])
@@ -169,11 +169,12 @@ async def handle_media_sound_action(update: Update, context: ContextTypes.DEFAUL
         return
     chat_id_for_status = chat_id_for_status_obj.id
 
-    user_role = app_config_holder.get_user_role(str(chat_id_for_status))
+    is_primary_admin_check = app_config_holder.is_primary_admin(
+        str(chat_id_for_status))
 
-    if user_role != app_config_holder.ROLE_ADMIN:
+    if not is_primary_admin_check:
         logger.warning(
-            f"PC media action attempt by non-admin {chat_id_for_status} (Role: {user_role}).")
+            f"PC media action attempt by non-primary admin {chat_id_for_status}.")
         await query.answer("Access Denied.", show_alert=True)
         return
 

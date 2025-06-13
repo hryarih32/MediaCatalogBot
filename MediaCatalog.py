@@ -18,6 +18,7 @@ from src.bot.bot_initialization import (
 from src.handlers.abdm import *
 
 from src.bot.bot_telegram import setup_handlers
+from src.app.app_api_status_manager import periodic_api_status_check, update_all_api_statuses_once  # New Import
 from src.app.app_setup import perform_initial_setup
 from src.app import app_config_holder
 
@@ -55,6 +56,10 @@ async def post_init_tasks(application: Application) -> None:
     project_version = app_config_holder.get_project_version()
     logger.info(
         f"Version {project_version} - Post-init tasks started: Setting commands and refreshing menus for known users.")
+
+    # Perform an initial API status check and update bot_data
+    await update_all_api_statuses_once(application.bot_data)
+
     await set_bot_commands(application)
 
     users_to_refresh = set()
@@ -142,6 +147,12 @@ def main():
             application.post_init = post_init_tasks
             set_bot_application_instance(application)
             logger.info("Application built.")
+
+            # Schedule the periodic API status check job
+            # Check every 5 mins, first run after 10s
+            application.job_queue.run_repeating(
+                periodic_api_status_check, interval=60, first=30, name="PeriodicAPIStatusCheck")
+            logger.info("Scheduled periodic API status check job.")
             break
         except (NetworkError, TimedOut) as ne:
             logger.warning(

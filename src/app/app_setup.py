@@ -11,8 +11,8 @@ from .app_file_utils import (
     load_project_version as load_project_version_from_file_utils,
     get_config_file_path,
     get_config_template_path,
-    load_requests_data,
-    save_requests_data
+    load_requests_data,  # Keep for media requests
+    load_tickets_data  # New import
 )
 from src.config.config_manager import (
     _load_config_module_from_path, config_exists_and_is_complete,
@@ -275,6 +275,13 @@ def perform_initial_setup():
     except Exception as e_req_init:
         logger.error(
             f"Failed to initialize requests data file: {e_req_init}", exc_info=True)
+
+    try:  # New block for tickets.json
+        _ = load_tickets_data()
+        logger.info(f"Checked/Initialized tickets data file.")
+    except Exception as e_ticket_init:
+        logger.error(
+            f"Failed to initialize tickets data file: {e_ticket_init}", exc_info=True)
 
     check_pc_control_dependencies(config_file_path)
 

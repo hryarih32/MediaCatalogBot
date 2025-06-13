@@ -17,6 +17,7 @@ LOG_DIRECTORY_PATH_CACHE = None
 
 REQUESTS_FILE_NAME = "requests.json"
 BOT_STATE_FILE_NAME = "bot_state.json"
+TICKETS_FILE_NAME = "tickets.json"  # New
 
 
 def get_project_root():
@@ -75,6 +76,10 @@ def get_requests_file_path():
 
 def get_bot_state_file_path():
     return os.path.join(get_data_storage_path(), BOT_STATE_FILE_NAME)
+
+
+def get_tickets_file_path():  # New function
+    return os.path.join(get_data_storage_path(), TICKETS_FILE_NAME)
 
 
 def get_bundled_or_local_resource_path(relative_path_from_root: str, subfolder: str | None = None):
@@ -281,3 +286,29 @@ def save_requests_data(requests_list: list) -> bool:
             f"Attempted to save non-list data to {REQUESTS_FILE_NAME}. Aborting save.")
         return False
     return save_json_data(get_requests_file_path(), requests_list)
+
+
+def load_tickets_data() -> dict:  # New function
+    """Loads support tickets from tickets.json."""
+    tickets_dict_data = load_json_data(get_tickets_file_path())
+    if isinstance(tickets_dict_data, dict):
+        return tickets_dict_data
+    elif tickets_dict_data is None:
+        logger.info(
+            f"{TICKETS_FILE_NAME} not found or empty/corrupt. Initializing as empty dict.")
+        save_tickets_data({})  # Initialize with an empty dictionary
+        return {}
+    else:
+        logger.warning(
+            f"{TICKETS_FILE_NAME} content was not a dict. Re-initializing as empty dict.")
+        save_tickets_data({})
+        return {}
+
+
+def save_tickets_data(tickets_dict: dict) -> bool:  # New function
+    """Saves support tickets to tickets.json."""
+    if not isinstance(tickets_dict, dict):
+        logger.error(
+            f"Attempted to save non-dict data to {TICKETS_FILE_NAME}. Aborting save.")
+        return False
+    return save_json_data(get_tickets_file_path(), tickets_dict)

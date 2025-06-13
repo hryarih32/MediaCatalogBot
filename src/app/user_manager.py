@@ -112,13 +112,14 @@ def get_all_users_from_state() -> dict:
     return state.get("users", {}).copy()
 
 
-def get_role_for_chat_id(chat_id_str: str) -> str:
+def get_role_for_chat_id(chat_id_str: str, force_reload_state: bool = False) -> str:
 
     if not chat_id_str:
         return app_config_holder.ROLE_UNKNOWN
     if app_config_holder.is_primary_admin(chat_id_str):
         return app_config_holder.ROLE_ADMIN
-    state = _load_bot_state()
+    # Use the parameter here
+    state = _load_bot_state(force_reload=force_reload_state)
     users = state.get("users", {})
     user_info = users.get(str(chat_id_str))
     if user_info and "role" in user_info:
@@ -243,31 +244,41 @@ def get_last_startup_time_str() -> str | None:
     return state.get("bot_info", {}).get("last_startup_time")
 
 
-def update_username_if_placeholder(chat_id_str: str, effective_user: User) -> bool:
-
+def update_username_if_changed_or_placeholder(chat_id_str: str, effective_user: User | None) -> bool:
+    """
+    Updates the username in bot_state if it's a placeholder or if it has changed
+    compared to the one provided by the Telegram User object.
+    Returns True if an update was made, False otherwise.
+    """
     if not chat_id_str or not effective_user:
         return False
+
     state = _load_bot_state(force_reload=True)
     users = state.get("users", {})
     user_info = users.get(str(chat_id_str))
+
     if not user_info:
         logger.debug(
-            f"User {chat_id_str} not found in state for username update.")
+            f"User {chat_id_str} not found in state for username update/check.")
         return False
-    current_username = user_info.get("username")
+
+    current_username_in_state = user_info.get("username")
+    # Prioritize username
+    new_telegram_username = effective_user.username or effective_user.first_name
+
     needs_update = False
-    if _is_username_placeholder(current_username, chat_id_str):
-        new_name_to_set = effective_user.username or effective_user.first_name
-        if new_name_to_set and new_name_to_set != current_username:
-            user_info["username"] = new_name_to_set
+    if new_telegram_username:  # Only update if we have a new name from Telegram
+        if _is_username_placeholder(current_username_in_state, chat_id_str) and current_username_in_state != new_telegram_username:
             needs_update = True
-            logger.info(
-                f"Updating username for {chat_id_str} from '{current_username}' to '{new_name_to_set}'.")
-        elif not new_name_to_set and current_username:
-            logger.debug(
-                f"User {chat_id_str} has placeholder '{current_username}', but no new name from Telegram.")
+        elif not _is_username_placeholder(current_username_in_state, chat_id_str) and current_username_in_state != new_telegram_username:
+            needs_update = True
+
     if needs_update:
-        state["users"] = users
+        user_info["username"] = new_telegram_username
+        logger.info(
+            f"Updating username for {chat_id_str} from '{current_username_in_state}' to '{new_telegram_username}'.")
+        # No need to re-assign users to state if user_info is a direct reference from it.
+        # state["users"] = users # This line might be redundant if user_info is a reference
         return _save_bot_state(state)
     return False
 

@@ -113,7 +113,34 @@ class CallbackData(str, Enum):
     CMD_ADMIN_USER_PAGE_PREFIX = "admin_user_page_"
     CMD_ADMIN_USER_SELECT_FOR_EDIT_PREFIX = "admin_user_edit_"
     CMD_ADMIN_USER_CHANGE_ROLE_PREFIX = "admin_user_role_"
-    CMD_ADMIN_USER_REMOVE_PREFIX = "admin_user_remove_"
+    CMD_ADMIN_USER_REMOVE_PREFIX = "admin_user_remove_"  # Remains for direct removal
+    # Changed from send_msg
+    CMD_ADMIN_CREATE_TICKET_FOR_USER_INIT_PREFIX = "admin_create_ticket_init_"
     CMD_ADMIN_USER_ADD_INIT = "admin_user_add_init"
+
+    CMD_USER_VIEW_ADMIN_MESSAGE_PREFIX = "user_view_admin_msg_"
+    CMD_USER_MARK_ADMIN_MESSAGE_READ_PREFIX = "user_mark_admin_msg_read_"
+    CMD_USER_REPLY_TO_ADMIN_INIT_PREFIX = "user_reply_admin_init_"
+
+    CMD_ADMIN_VIEW_USER_REPLY_PREFIX = "admin_view_user_reply_"
+    CMD_ADMIN_MARK_USER_REPLY_READ_PREFIX = "admin_mark_user_reply_read_"
+    CMD_ADMIN_END_REPLY_THREAD_PREFIX = "admin_end_reply_thread_"
+
+    # --- Ticketing System ---
+    CMD_TICKETS_MENU = "cmd_tickets_menu"
+    CMD_USER_VIEW_TICKET_PREFIX = "user_view_ticket_"
+    # Placeholder for Phase 2
+    CMD_USER_REPLY_TO_TICKET_INIT_PREFIX = "user_reply_ticket_init_"
+    CMD_USER_CLOSE_TICKET_PREFIX = "user_close_ticket_"  # Placeholder for Phase 2
+    CMD_USER_NEW_TICKET_INIT = "user_new_ticket_init"  # Placeholder for Phase 2
+
+    # New for admin viewing a specific ticket
+    CMD_ADMIN_VIEW_TICKET_PREFIX = "admin_view_ticket_"
+    # Placeholder for admin reply
+    CMD_ADMIN_REPLY_TO_TICKET_INIT_PREFIX = "admin_reply_ticket_init_"
+    # Placeholder for admin closing
+    CMD_ADMIN_CLOSE_TICKET_PREFIX = "admin_close_ticket_"
+    # For admin ticket list pagination
+    CMD_ADMIN_TICKETS_PAGE_PREFIX = "admin_tickets_page_"
 
     CB_NO_OP = "cb_no_op"

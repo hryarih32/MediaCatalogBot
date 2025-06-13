@@ -40,14 +40,14 @@ def get_job_queue_from_context_or_global(context: ContextTypes.DEFAULT_TYPE):
 async def display_system_power_controls_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     chat_id = update.effective_chat.id
-    user_role = app_config_holder.get_user_role(str(chat_id))
+    is_primary_admin_check = app_config_holder.is_primary_admin(str(chat_id))
 
     if query:
         await query.answer()
 
-    if user_role != app_config_holder.ROLE_ADMIN:
+    if not is_primary_admin_check:
         logger.warning(
-            f"PC power controls attempt by non-admin {chat_id} (Role: {user_role}).")
+            f"PC power controls attempt by non-primary admin {chat_id}.")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied. PC Power Controls are for administrators.", parse_mode=None)
         return
 
@@ -169,12 +169,12 @@ async def handle_power_action(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     chat_id = chat_id_for_status_obj.id
 
-    user_role = app_config_holder.get_user_role(str(chat_id))
+    is_primary_admin_check = app_config_holder.is_primary_admin(str(chat_id))
     await query.answer()
 
-    if user_role != app_config_holder.ROLE_ADMIN:
+    if not is_primary_admin_check:
         logger.warning(
-            f"PC power action attempt by non-admin {chat_id} (Role: {user_role}).")
+            f"PC power action attempt by non-primary admin {chat_id}.")
         await send_or_edit_universal_status_message(context.bot, chat_id, "⚠️ Access Denied for power action.", parse_mode=None)
         return
 

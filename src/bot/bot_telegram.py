@@ -107,8 +107,28 @@ from src.handlers.admin_users.menu_handler_admin_users import (
     handle_add_user_init,
     handle_add_user_chat_id_input,
     handle_add_user_role_selection,
-    cancel_add_user_conversation,
-    ASK_NEW_USER_CHAT_ID, ASK_NEW_USER_ROLE)
+    cancel_add_user_conversation, handle_create_ticket_for_user_init, handle_admin_initial_ticket_message_input,  # Renamed handlers
+    # cancel_send_message_conversation is for the admin creating a ticket for a user
+    cancel_send_message_conversation,
+    ASK_NEW_USER_CHAT_ID, ASK_NEW_USER_ROLE, AWAITING_ADMIN_MESSAGE_TEXT
+)
+from src.handlers.user_message_handler import (  # New Import
+    # Old message system, to be deprecated
+    handle_view_admin_message, handle_mark_admin_message_read,
+    handle_reply_to_admin_init, handle_user_reply_input, cancel_user_reply_conversation, AWAITING_USER_REPLY_TEXT,  # Old message system
+    # Ticket system handlers
+    handle_user_view_ticket_details, handle_user_reply_to_ticket_init, handle_user_ticket_reply_input,
+    handle_user_close_ticket, AWAITING_TICKET_REPLY_TEXT  # New ticket system
+)
+from src.handlers.admin_message_viewer_handler import (  # New Import
+    handle_admin_mark_user_reply_read,  # Old direct message system
+    handle_admin_view_ticket_details,  # Renamed for viewing specific ticket
+    handle_admin_close_ticket,  # For admin closing a ticket
+    handle_admin_reply_to_ticket_init, handle_admin_ticket_reply_input, cancel_admin_ticket_reply_conversation, AWAITING_ADMIN_TICKET_REPLY_TEXT  # New ticket system
+)
+from src.handlers.tickets_handler import (  # New import for ticket list and new ticket creation
+    display_tickets_menu, handle_user_new_ticket_init, handle_user_new_ticket_input, cancel_new_ticket_conversation, AWAITING_NEW_TICKET_TEXT
+)
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +150,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not update.effective_user or not update.message or not update.effective_chat:
         logger.warning("start_command missing effective_user/message/chat.")
         return
-    chat_id = update.effective_chat.id
-    user_manager.update_username_if_placeholder(
+    chat_id = update.effective_chat.id  # type: ignore
+    user_manager.update_username_if_changed_or_placeholder(
         str(chat_id), update.effective_user)
     user_role = app_config_holder.get_user_role(str(chat_id))
     await delete_user_message_if_exists(update)
@@ -182,7 +202,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not update.effective_user or not update.message or not update.effective_chat:
         return
     chat_id = update.effective_chat.id
-    user_manager.update_username_if_placeholder(
+    user_manager.update_username_if_changed_or_placeholder(
         str(chat_id), update.effective_user)
     await delete_user_message_if_exists(update)
     user_role = app_config_holder.get_user_role(str(chat_id))
@@ -283,6 +303,81 @@ def setup_handlers(application: Application):
             cancel_add_user_conversation, pattern="^cancel_add_user$")],
     )
     application.add_handler(add_user_conv_handler)
+
+    send_message_to_user_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(handle_create_ticket_for_user_init,  # Updated entry point
+                                           pattern=rf"^{CallbackData.CMD_ADMIN_CREATE_TICKET_FOR_USER_INIT_PREFIX.value}.+$")],
+        states={
+            AWAITING_ADMIN_MESSAGE_TEXT: [MessageHandler(
+                # Updated state handler
+                filters.TEXT & ~filters.COMMAND, handle_admin_initial_ticket_message_input)],
+        },
+        fallbacks=[CommandHandler(
+            'cancel_msg', cancel_send_message_conversation)],
+    )
+    application.add_handler(send_message_to_user_conv_handler)
+
+    # Handlers for user viewing/marking admin messages as read
+    # application.add_handler(CallbackQueryHandler(
+    #     handle_view_admin_message, pattern=rf"^{CallbackData.CMD_USER_VIEW_ADMIN_MESSAGE_PREFIX.value}.+$")) # Will be deprecated
+    # application.add_handler(CallbackQueryHandler(
+    #     handle_mark_admin_message_read, pattern=rf"^{CallbackData.CMD_USER_MARK_ADMIN_MESSAGE_READ_PREFIX.value}.+$")) # Will be deprecated
+
+    # New handler for user viewing a ticket
+    application.add_handler(CallbackQueryHandler(  # Renamed handler
+        handle_user_view_ticket_details, pattern=rf"^{CallbackData.CMD_USER_VIEW_TICKET_PREFIX.value}.+$"))
+
+    # Conversation handler for user replying to a ticket (via button on ticket view)
+    user_reply_to_ticket_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(
+            handle_user_reply_to_ticket_init, pattern=rf"^{CallbackData.CMD_USER_REPLY_TO_TICKET_INIT_PREFIX.value}.+$")],
+        states={
+            AWAITING_TICKET_REPLY_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_ticket_reply_input)],
+        },
+        # cancel_user_reply_conversation can be reused or a new one created
+        # Using a more specific cancel command for this conversation
+        fallbacks=[CommandHandler(
+            'cancel_ticket_reply', cancel_user_reply_conversation)],
+    )
+    application.add_handler(user_reply_to_ticket_conv_handler)
+
+    # Handler for user closing their ticket
+    application.add_handler(CallbackQueryHandler(
+        handle_user_close_ticket, pattern=rf"^{CallbackData.CMD_USER_CLOSE_TICKET_PREFIX.value}.+$"))
+
+    # Conversation handler for user creating a new ticket
+    user_new_ticket_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(
+            handle_user_new_ticket_init, pattern=f"^{CallbackData.CMD_USER_NEW_TICKET_INIT.value}$")],
+        states={
+            AWAITING_NEW_TICKET_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_new_ticket_input)],
+        },
+        fallbacks=[CommandHandler(
+            'cancel_new_ticket', cancel_new_ticket_conversation)],  # More specific cancel
+    )
+    application.add_handler(user_new_ticket_conv_handler)
+
+    # Handler for admin viewing a specific ticket's details
+    application.add_handler(CallbackQueryHandler(  # Renamed handler
+        handle_admin_view_ticket_details, pattern=rf"^{CallbackData.CMD_ADMIN_VIEW_TICKET_PREFIX.value}.+$"))
+
+    # Conversation handler for admin replying to a ticket
+    admin_reply_to_ticket_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(
+            handle_admin_reply_to_ticket_init, pattern=rf"^{CallbackData.CMD_ADMIN_REPLY_TO_TICKET_INIT_PREFIX.value}.+$")],
+        states={
+            AWAITING_ADMIN_TICKET_REPLY_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_ticket_reply_input)],
+        },
+        fallbacks=[CommandHandler(
+            'cancel_admin_ticket_reply', cancel_admin_ticket_reply_conversation)],
+    )
+    application.add_handler(admin_reply_to_ticket_conv_handler)
+
+    application.add_handler(CallbackQueryHandler(
+        handle_admin_close_ticket, pattern=rf"^{CallbackData.CMD_ADMIN_CLOSE_TICKET_PREFIX.value}.+$"))
+
+    # Handler for the main "Tickets" menu button itself (now points to display_tickets_menu)
+    # This is handled by main_menu_callback if CMD_TICKETS_MENU is in root_menu_exact_match_patterns
 
     application.add_handler(CallbackQueryHandler(
         display_manage_users_menu, pattern=rf"^{CallbackData.CMD_ADMIN_USER_PAGE_PREFIX.value}\d+$"))
@@ -422,9 +517,9 @@ def setup_handlers(application: Application):
         CallbackData.CMD_ADD_MOVIE_INIT.value, CallbackData.CMD_ADD_SHOW_INIT.value,
         CallbackData.CMD_ADD_DOWNLOAD_INIT.value,
         CallbackData.CMD_LAUNCHERS_MENU.value,
-        CallbackData.CMD_PC_CONTROL_ROOT.value,
         CallbackData.CMD_RADARR_CONTROLS.value, CallbackData.CMD_SONARR_CONTROLS.value,
         CallbackData.CMD_PLEX_CONTROLS.value,
+        CallbackData.CMD_PC_SHOW_MEDIA_SOUND_MENU.value, CallbackData.CMD_PC_SHOW_SYSTEM_POWER_MENU.value,
 
         CallbackData.CMD_PLEX_MENU_BACK.value,
 
@@ -434,6 +529,7 @@ def setup_handlers(application: Application):
         CallbackData.CMD_MY_REQUESTS_MENU.value, CallbackData.CMD_ADMIN_REQUESTS_MENU.value,
         CallbackData.CMD_PLEX_INITIATE_SEARCH.value,
 
+        CallbackData.CMD_TICKETS_MENU.value,  # Added Tickets Menu
         CallbackData.CMD_ADMIN_MANAGE_USERS_MENU.value,
     ]
     regex_root_menu_exact_triggers = "^(" + "|".join(f"({re.escape(item)})" for item in list(

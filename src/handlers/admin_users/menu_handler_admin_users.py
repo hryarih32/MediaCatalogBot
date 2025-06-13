@@ -4,12 +4,15 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 import datetime
 from telegram.error import BadRequest
+import time
+import uuid
 
 import src.app.app_config_holder as app_config_holder
 import src.app.user_manager as user_manager
 from src.bot.bot_callback_data import CallbackData
 from src.bot.bot_initialization import send_or_edit_universal_status_message, show_or_edit_main_menu
 from src.bot.bot_message_persistence import load_menu_message_id
+from src.app.app_file_utils import load_tickets_data, save_tickets_data  # New import
 from src.bot.bot_text_utils import escape_md_v2
 
 logger = logging.getLogger(__name__)
@@ -18,7 +21,7 @@ MANAGE_USERS_TITLE_MD2_TEMPLATE = "👑 Manage Users & Requests"
 EDIT_USER_TITLE_MD2_TEMPLATE = "✏️ Edit User: {username} \\({chat_id}\\)"
 ITEMS_PER_PAGE_USERS = 5
 
-ASK_NEW_USER_CHAT_ID, ASK_NEW_USER_ROLE = range(2)
+ASK_NEW_USER_CHAT_ID, ASK_NEW_USER_ROLE, AWAITING_ADMIN_MESSAGE_TEXT = range(3)
 
 
 async def display_manage_users_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 1) -> None:
@@ -210,6 +213,8 @@ async def display_edit_user_menu(update: Update, context: ContextTypes.DEFAULT_T
     if current_role != app_config_holder.ROLE_STANDARD_USER:
         keyboard.append([InlineKeyboardButton("👤 Set Role: Standard User",
                         callback_data=f"{CallbackData.CMD_ADMIN_USER_CHANGE_ROLE_PREFIX.value}{user_to_edit_id_str}_{app_config_holder.ROLE_STANDARD_USER}")])
+    keyboard.append([InlineKeyboardButton("💬 Create Ticket for User",  # Changed button text
+                    callback_data=f"{CallbackData.CMD_ADMIN_CREATE_TICKET_FOR_USER_INIT_PREFIX.value}{user_to_edit_id_str}")])
 
     keyboard.append([InlineKeyboardButton(
         "🗑️ Remove User", callback_data=f"{CallbackData.CMD_ADMIN_USER_REMOVE_PREFIX.value}{user_to_edit_id_str}")])
@@ -481,4 +486,143 @@ async def cancel_add_user_conversation(update: Update, context: ContextTypes.DEF
         await display_manage_users_menu(dummy_update, context, page=context.user_data.get('admin_users_current_page', 1))
     else:
         await show_or_edit_main_menu(str(admin_chat_id), context)
+    return ConversationHandler.END
+
+
+# --- Conversation for Sending Message to User ---
+# Renamed
+async def handle_create_ticket_for_user_init(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    admin_chat_id = update.effective_chat.id
+
+    if not app_config_holder.is_primary_admin(str(admin_chat_id)):
+        await query.answer("Access Denied.", show_alert=True)
+        return ConversationHandler.END
+
+    target_user_id_str = query.data.replace(
+        CallbackData.CMD_ADMIN_CREATE_TICKET_FOR_USER_INIT_PREFIX.value, "")  # Updated CB
+    await query.answer()
+
+    all_users = user_manager.get_all_users_from_state()
+    target_user_data = all_users.get(target_user_id_str)
+
+    if not target_user_data:
+        await send_or_edit_universal_status_message(context.bot, admin_chat_id, "⚠️ User not found.", parse_mode=None)
+        return ConversationHandler.END
+
+    target_username = target_user_data.get(
+        'username', f"User_{target_user_id_str}")
+
+    context.user_data['admin_creating_ticket_for_user_id'] = target_user_id_str
+    context.user_data['admin_creating_ticket_for_username'] = target_username
+
+    prompt_text = f"📝 Enter the initial message for the new ticket to {escape_md_v2(target_username)} \\({escape_md_v2(target_user_id_str)}\\)\\. Send /cancel\\_ticket to abort\\."
+    prompt_msg = await send_or_edit_universal_status_message(context.bot, admin_chat_id, prompt_text, parse_mode="MarkdownV2")
+    if prompt_msg:
+        context.user_data['admin_creating_ticket_prompt_msg_id'] = prompt_msg
+
+    return AWAITING_ADMIN_MESSAGE_TEXT
+
+
+# Renamed
+async def handle_admin_initial_ticket_message_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    admin_chat_id = update.effective_chat.id
+    if not app_config_holder.is_primary_admin(str(admin_chat_id)) or not update.message:
+        return ConversationHandler.END
+
+    admin_message_text = update.message.text
+    admin_input_msg_id = update.message.message_id
+
+    target_user_id_str = context.user_data.get(
+        'admin_creating_ticket_for_user_id')
+    target_username = context.user_data.get(
+        'admin_creating_ticket_for_username', 'the user')
+    prompt_msg_id = context.user_data.pop(
+        'admin_creating_ticket_prompt_msg_id', None)
+
+    try:
+        await context.bot.delete_message(chat_id=admin_chat_id, message_id=admin_input_msg_id)
+        if prompt_msg_id:
+            await context.bot.delete_message(chat_id=admin_chat_id, message_id=prompt_msg_id)
+    except Exception as e_del:
+        logger.warning(f"Could not delete admin message input/prompt: {e_del}")
+
+    if not target_user_id_str:
+        await send_or_edit_universal_status_message(context.bot, admin_chat_id, "⚠️ Error: Target user ID not found. Ticket not created.", parse_mode=None)
+        return ConversationHandler.END
+
+    try:
+        # Create and store the new ticket
+        ticket_id = str(uuid.uuid4())
+        # support_tickets_store = context.application.bot_data.setdefault('support_tickets', {}) # Old
+        support_tickets_store = load_tickets_data()  # New
+
+        new_ticket = {
+            "ticket_id": ticket_id,
+            "user_chat_id": target_user_id_str,
+            "user_username": target_username,  # Username of the target user
+            # ID of the admin creating the ticket
+            "admin_chat_id": str(admin_chat_id),
+            "status": "open_by_admin",  # Initial status
+            "created_at": time.time(),
+            "last_updated_at": time.time(),
+            "messages": [
+                {
+                    "sender_id": str(admin_chat_id),
+                    # Admin's username
+                    "sender_username": update.effective_user.username or str(admin_chat_id),
+                    "sender_type": "admin",
+                    "text": admin_message_text,
+                    "timestamp": time.time()
+                }
+            ]
+        }
+        support_tickets_store[ticket_id] = new_ticket
+        save_tickets_data(support_tickets_store)  # New
+        logger.info(
+            f"Admin {admin_chat_id} created new ticket (ID: {ticket_id}) for user {target_user_id_str}")
+
+        # Schedule a job to refresh the target user's UI
+        async def refresh_user_ui_job(job_context: ContextTypes.DEFAULT_TYPE):
+            user_id_to_refresh = job_context.job.data.get('chat_id')
+            if user_id_to_refresh:
+                logger.info(
+                    f"Job: Refreshing UI for user {user_id_to_refresh} due to new ticket from admin.")
+                await show_or_edit_main_menu(str(user_id_to_refresh), job_context.application)
+                await send_or_edit_universal_status_message(
+                    job_context.bot, int(user_id_to_refresh),
+                    "📬 You have a new ticket from the administrator. Check your main menu or /tickets.",
+                    parse_mode=None
+                )
+        context.application.job_queue.run_once(refresh_user_ui_job, 0.5, data={
+                                               # Use short ID for job name
+                                               'chat_id': target_user_id_str}, name=f"refresh_ui_new_ticket_{target_user_id_str}_{ticket_id[:8]}")
+
+        success_message_text_raw = f"✅ Ticket #{ticket_id[:8]} created for {target_username}."
+        await send_or_edit_universal_status_message(context.bot, admin_chat_id, escape_md_v2(success_message_text_raw), parse_mode="MarkdownV2")
+
+    except Exception as e:
+        error_message_text_raw = f"⚠️ Failed to create ticket for {target_username}. Error: {str(e)}"
+        await send_or_edit_universal_status_message(context.bot, admin_chat_id, escape_md_v2(error_message_text_raw), parse_mode="MarkdownV2")
+        logger.error(
+            f"Failed to create ticket from admin {admin_chat_id} for user {target_user_id_str}: {e}", exc_info=True)
+
+    context.user_data.pop('admin_creating_ticket_for_user_id', None)
+    context.user_data.pop('admin_creating_ticket_for_username', None)
+    return ConversationHandler.END
+
+
+async def cancel_send_message_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    admin_chat_id = update.effective_chat.id
+    prompt_msg_id = context.user_data.pop(
+        'admin_creating_ticket_prompt_msg_id', None)  # Updated key
+    if prompt_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=admin_chat_id, message_id=prompt_msg_id)
+        except Exception:
+            pass
+    # Updated text
+    await send_or_edit_universal_status_message(context.bot, admin_chat_id, "Ticket creation cancelled.", parse_mode=None)
+    context.user_data.pop('admin_creating_ticket_for_user_id', None)
+    context.user_data.pop('admin_creating_ticket_for_username', None)
     return ConversationHandler.END

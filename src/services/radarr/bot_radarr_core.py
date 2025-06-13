@@ -20,8 +20,9 @@ def init_radarr_config(base_api_url, api_key):
                       requests.exceptions.RequestException,
                       max_tries=3,
                       max_time=60,
+                      # type: ignore
                       giveup=lambda e: hasattr(e, 'response') and e.response is not None and 400 <= e.response.status_code < 500 and e.response.status_code not in [401, 403, 429])
-def _radarr_request_impl(method, endpoint, params=None, data=None, headers=None):
+def _radarr_request_impl(method, endpoint, params=None, data=None, headers=None, timeout_override=None):
     if not RADARR_API_URL_GLOBAL or not RADARR_API_KEY_GLOBAL:
         logger.error(
             "Radarr API URL or Key not configured at time of request.")
@@ -52,10 +53,10 @@ def _radarr_request_impl(method, endpoint, params=None, data=None, headers=None)
     if headers:
         base_headers.update(headers)
 
-    current_timeout = REQUEST_TIMEOUT
-    if endpoint == "movie/editor" and method.lower() == "put":
+    current_timeout = timeout_override if timeout_override is not None else REQUEST_TIMEOUT
+    if endpoint == "movie/editor" and method.lower() == "put" and timeout_override is None:
         current_timeout = 60
-    elif method.lower() == "post" and data and data.get("name") in ["RenameMovie", "RefreshMovie", "RescanMovie", "MovieSearch"]:
+    elif method.lower() == "post" and data and data.get("name") in ["RenameMovie", "RefreshMovie", "RescanMovie", "MovieSearch"] and timeout_override is None:
         current_timeout = COMMAND_TIMEOUT
 
     response_obj = None
@@ -110,3 +111,19 @@ def _radarr_request_impl(method, endpoint, params=None, data=None, headers=None)
 
 _radarr_request = _radarr_request_impl
 _radarr_request.last_response_status = None
+
+
+def check_radarr_connection() -> bool:
+    """Performs a quick health check for Radarr."""
+    if not RADARR_API_URL_GLOBAL or not RADARR_API_KEY_GLOBAL:
+        return False
+    try:
+        # Make a lightweight call to /system/status
+        _radarr_request('get', '/system/status', timeout_override=3)
+        logger.debug("Radarr health check: PASSED")
+        return True
+    except Exception as e:
+        # Log at debug, as this is a health check
+        logger.debug(
+            f"Radarr health check: FAILED - {type(e).__name__}: {e}", exc_info=False)
+        return False

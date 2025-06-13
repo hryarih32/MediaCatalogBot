@@ -40,14 +40,13 @@ def is_primary_admin(chat_id: int | str) -> bool:
     return False
 
 
-def get_user_role(chat_id: int | str) -> str:
+def get_user_role(chat_id: int | str, force_reload_state: bool = False) -> str:
     """
     Determines the role of a user.
     Uses user_manager to check against bot_state.json,
     after checking for primary admin status from config.py.
     """
-
-    return user_manager_module.get_role_for_chat_id(str(chat_id))
+    return user_manager_module.get_role_for_chat_id(str(chat_id), force_reload_state=force_reload_state)
 
 
 def is_plex_enabled():

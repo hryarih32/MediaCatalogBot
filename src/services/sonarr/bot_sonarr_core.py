@@ -28,8 +28,9 @@ def init_sonarr_config(base_api_url, api_key):
                       requests.exceptions.RequestException,
                       max_tries=3,
                       max_time=60,
+                      # type: ignore
                       giveup=lambda e: hasattr(e, 'response') and e.response is not None and 400 <= e.response.status_code < 500 and e.response.status_code not in [401, 403, 429])
-def _sonarr_request_impl(method, endpoint, params=None, data=None, headers=None):
+def _sonarr_request_impl(method, endpoint, params=None, data=None, headers=None, timeout_override=None):
     if not SONARR_API_URL_GLOBAL or not SONARR_API_KEY_GLOBAL:
         logger.error(
             "Sonarr API URL or Key not configured at time of request.")
@@ -60,8 +61,8 @@ def _sonarr_request_impl(method, endpoint, params=None, data=None, headers=None)
     if headers:
         base_headers.update(headers)
 
-    current_timeout = REQUEST_TIMEOUT
-    if method.lower() == "post" and data and data.get("name") in ["RenameSeries", "MissingEpisodeSearch", "SeriesSearch", "RefreshSeries", "RescanSeries", "EpisodeSearch"]:
+    current_timeout = timeout_override if timeout_override is not None else REQUEST_TIMEOUT
+    if method.lower() == "post" and data and data.get("name") in ["RenameSeries", "MissingEpisodeSearch", "SeriesSearch", "RefreshSeries", "RescanSeries", "EpisodeSearch"] and timeout_override is None:
         current_timeout = COMMAND_TIMEOUT
 
     response_obj = None
@@ -146,3 +147,19 @@ def get_series_title_by_id(series_id: int, force_refresh_cache=False) -> str:
     series_map = get_all_series_ids_and_titles_cached(
         force_refresh=force_refresh_cache)
     return series_map.get(series_id, "Unknown Series")
+
+
+def check_sonarr_connection() -> bool:
+    """Performs a quick health check for Sonarr."""
+    if not SONARR_API_URL_GLOBAL or not SONARR_API_KEY_GLOBAL:
+        return False
+    try:
+        # Make a lightweight call to /system/status
+        _sonarr_request('get', '/system/status', timeout_override=3)
+        logger.debug("Sonarr health check: PASSED")
+        return True
+    except Exception as e:
+        # Log at debug, as this is a health check
+        logger.debug(
+            f"Sonarr health check: FAILED - {type(e).__name__}: {e}", exc_info=False)
+        return False

@@ -109,3 +109,28 @@ def add_download_to_abdm(url: str, filename: str | None = None, destination_path
         logger.error(
             f"An unexpected error occurred when sending request to ABDM: {e}", exc_info=True)
         return f"❌ AB Download Manager: An unexpected error occurred: {type(e).__name__}."
+
+
+def check_abdm_connection() -> bool:
+    """Performs a quick health check for ABDM."""
+    base_url = _get_abdm_base_url()
+    if not base_url:
+        return False
+    try:
+        # Simple GET request to the base URL to see if the service is listening
+        response = requests.get(base_url, timeout=2)  # Short timeout
+        # We are checking for connection, not necessarily a 200 OK on base path.
+        # A 404 or similar is fine if the server is up and responding.
+        logger.debug(
+            f"ABDM health check: PASSED (status: {response.status_code})")
+        return True
+    except requests.exceptions.ConnectionError:
+        logger.debug("ABDM health check: FAILED - ConnectionError")
+        return False
+    except requests.exceptions.Timeout:
+        logger.debug("ABDM health check: FAILED - Timeout")
+        return False
+    except Exception as e:
+        logger.debug(
+            f"ABDM health check: FAILED - {type(e).__name__}: {e}", exc_info=False)
+        return False
